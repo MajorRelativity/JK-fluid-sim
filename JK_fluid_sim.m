@@ -5,38 +5,85 @@ main()
 %% Main
 function main()
 
+    simulate_fluid(.1,10,100,.2,.99,9.81)
+
 end
 
 %% Simulation Runner:
 % Main Function:
-function simulate_fluid(dt,num_elements,size)
+function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
 % The primary function used to run the simulation
+% Takes:
+%   dt: The time step between each iteration of the simulation
+%   num_elements: The number of elements you want in the simulation
+%   size: The size of each element in the simulation
+%   sim_time: The amount of seconds you want to run the simulation for 
 
+    % Run Setup:
+    Data = spawn_elements([0;0],num_elements,3);
 
+    x = Data(1,:,1);
+    y = Data(2,:,1);
+    plot_obj = create_plot(x, y, 100);
+
+    plot_obj(1).XDataSource = 'x';
+    plot_obj(1).YDataSource = 'y';
+
+    % Simulation Loop:
+    for t = 0:dt:sim_time
+        % Forward Walk:
+        Data = forward_walk(Data, num_elements, dt);
+
+        % Molecule Collisions
+        collisions = detect_element_interaction(Data(:,:,1),size);
+        run_element_collisions(Data,collisions,size,dt);
+
+        % Wall Collisions
+        [u_collisions, l_collisions] = detect_wall_interaction(Data(:,:,1),size);
+        Data = run_wall_collisions(Data,l_collisions,true,v_loss,size,dt);
+        Data = run_wall_collisions(Data,u_collisions,false,v_loss,size,dt);
+
+        % Add Gravity:
+        Data(2,:,3) = Data(2,:,3) - g;
+
+        % Update Plot:
+        pause(.1)
+        x(:) = Data(1,:,1);
+        y(:) = Data(2,:,1);
+        refreshdata(plot_obj,'caller')
+        drawnow
+
+    end
 
 end
 
-
 %% Data Manipulation:
 % Setup
-function data = spawn_elements(center, num_elements)
+function Data = spawn_elements(center, num_elements, vmax)
 % Creates the data matrix that will be used to store and keep track of the
-% elements, spawning them at a default position.
+% elements, spawning them at a default position. The velocities are random
+% between a given speed interval.
 % Takes:
 %   center (vector): The spawning coordinates of the balls
 %   num_elements (int): Gives the number of balls
+%   vmax (int): The Maximum possible initial speed
 % Returns:
 %   data: a 3D matrix with dimension rows, element number as columns, and
 %   position derivatives along the depth (r, v, a)
 
-    % Prealocate Matrix:
-    data(:,:,1) = repmat(center,1,num_elements);
-    data(:,:,2:3) = zeros(2,num_elements,2);
+    % Positions:
+    Data(:,:,1) = repmat(center,1,num_elements);
+
+    % Random Velocities:
+    Data(:,:,2) = rand([2 num_elements]) .* randi(vmax,[1 num_elements]);
+
+    % Accelerations:
+    Data(:,:,3) = zeros(2,num_elements);
 
 end
 
 % Forward Walk:
-function data = forward_walk(data,dt)
+function Data = forward_walk(Data,num_elements,dt)
 % Takes the data (as defined in spawn_elements) and iterates forward using
 % the Euler method over dt:
 % Takes:
@@ -46,14 +93,72 @@ function data = forward_walk(data,dt)
 %   data (3D Matrix): Updated
 
 % Velocity:
-data(:,:,2) = data(:,:,2) + dt * data(:,:,3);
+Data(:,:,2) = Data(:,:,2) + dt * Data(:,:,3);
 
 % Position:
-data(:,:,1) = data(:,:,1) + dt * data(:,:,2); 
+Data(:,:,1) = Data(:,:,1) + dt * Data(:,:,2); 
+
+% Reset Acceleration:
+Data(:,:,3) = zeros(2,num_elements);
+
+end
+
+% Plotting:
+function plot_obj = create_plot(x,y, resolution)
+% Creates the plot that will hold the current state of the model
+% Takes:
+%   x: Starting x data
+%   y: Starting y data
+%   resolution: Resolution of the wall line data
+
+    % Create Wall Data:
+    x_wall = linspace(-10,10,resolution);
+    y_u_wall = u_wall(x_wall);
+    y_l_wall = l_wall(x_wall);
+    
+    % Create Plot Object
+    plot_obj = plot(x,y,'bo',x_wall,y_u_wall,x_wall,y_l_wall); 
+    
+    % Modify Element Plot Data
+    plot_obj(1).MarkerSize = 20;
 
 end
 
 %% Wall Collision Detection and Correction:
+
+% Manage Wall Collisions:
+function Data = run_wall_collisions(Data,collisions,l,v_loss,size,dt)
+% Manages the wall collisions for each individual element
+% Takes:
+%   Data (3D Matrix): Contains all of the important data
+%   u_collisions: Row vector indicating which elements collide with the
+%       upper wall or lower wall
+%   l: True if colliding with lower wall
+%   size: Radius of the element
+%   dt: Time step
+% Returns:
+%   Data: Updated
+    
+    % Load Data and Correct Position:
+    r = correct_element_position_wall(Data(:,collisions,1),size,l);
+    v = Data(:,collisions,2);
+    
+    num_collisions = width(r);
+    aP = zeros(2,num_collisions);
+
+    % Run Collisions:
+    for i = 1:num_collisions
+        
+        aP(:,i) = wall_collision_force(r(:,i),v(:,i),l,v_loss,dt);
+
+    end
+    
+    Data(:,collisions,1) = r;
+    Data(:,collisions,3) = Data(:,collisions,3) + aP;
+
+
+end
+
 % Wall Functions:
 function y = u_wall(x)
 % Defines the boundary you cannot find the element above!
@@ -62,7 +167,7 @@ function y = u_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = x + 10;
+    y = 5 * ones(1,width(x));
 
 end
 function y = l_wall(x)
@@ -72,7 +177,7 @@ function y = l_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = x - 10;
+    y = sin(x) - 5;
 
 end
 
@@ -149,16 +254,55 @@ function aP = wall_collision_force(r, v, l, v_loss, dt)
 end
 
 %% Molecule Collision Detection and Correction:
+% Manage Collisions:
+function Data = run_element_collisions(Data,collisions,size,dt)
+% Manages the collisions one by one for each pair of elements
+% Takes:
+%   Data (3D Matrix): Contains all of the position, velocity, and
+%       acceleration data
+%   collisions (Matrix): Contains two columns with column indices for the
+%       Data matrix indicating where there is a collision. For example
+%       [1 2] would mean element 1 is colliding with element 2
+% Returns:
+%   Data: Updated
+
+    for i = 1:height(collisions)
+        
+        % Assign Values:
+        E1 = collisions(i,1);
+        E2 = collisions(i,2);
+
+        r1 = Data(:,E1,1);
+        r2 = Data(:,E2,1);
+
+        v1 = Data(:,E1,2);
+        v2 = Data(:,E2,2);
+
+        % Run Corrections and Collisions
+        [r1, r2] = correct_element_position(r1,v1,r2,v2,size);
+        [aP1, aP2] = element_collision_force(r1, v1, r2, v2, dt);
+
+        % Update Position and Acceleration:
+        Data(:,E1,1) = r1;
+        Data(:,E2,1) = r2;
+
+        Data(:,E1,3) = Data(:,E1,3) + aP1;
+        Data(:,E2,3) = Data(:,E2,3) + aP2;
+    
+    end
+
+end
+
+% Detection, Collision, and Correction
 function collisions = detect_element_interaction(data, size)
-% Returns an upper triangular logical matrix where the row and column
-% denote the identity of the two particles, and the value is true if these
-% two particles have collides.
+% Returns a two column matrix where each value in the row
+% denote the identity of the two particles that are colliding.
 % Takes:
 %   data: A matrix of 2D position vectors where each column is a 
 %       different point
 %   size: The size of each molecule
 % Returns:
-%   collisions: A logical upper triangular matrix of identified collisions
+%   collisions: A two column matrix with indices in each of the columns
 
     collisions = boolean(zeros(width(data))); % Logical array
     size_sqr = size^2;
@@ -170,6 +314,9 @@ function collisions = detect_element_interaction(data, size)
         collisions(j,(j+1):end) = L_sqr <= size_sqr;
     
     end
+
+    [row,col] = find(collisions);
+    collisions = [row col];
     
 end
 function [rP1, rP2] = correct_element_position(r1, v1, r2, v2, size)
