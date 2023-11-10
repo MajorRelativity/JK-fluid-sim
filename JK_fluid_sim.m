@@ -1,11 +1,31 @@
 %% Testing Section
-main()
+%main()
+close all
+r1 = [0; 0]
+r2 = [.5; 0]
+v1 = [1; 0]
+v2 = [1; 0]
+size = .5
+
+circles([r1(1) r2(1)],[r1(2) r2(2)],size)
+xlim([-2 2])
+ylim([-1.5 1.5])
+
+figure
+[r1, r2] = correct_element_position(r1, v1, r2, v2, size)
+circles([r1(1) r2(1)],[r1(2) r2(2)],size)
+xlim([-2 2])
+ylim([-1.5 1.5])
+dr = r1 - r2
+sqrt(dot(dr,dr))
+
 
 
 %% Main
 function main()
-
-    simulate_fluid(.1,10,100,.2,.99,9.81)
+    
+    close
+    simulate_fluid(.1,100,10,.4,.50,9.81)
 
 end
 
@@ -36,7 +56,7 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
 
         % Molecule Collisions
         collisions = detect_element_interaction(Data(:,:,1),size);
-        run_element_collisions(Data,collisions,size,dt);
+        Data = run_element_collisions(Data,collisions,size,dt);
 
         % Wall Collisions
         [u_collisions, l_collisions] = detect_wall_interaction(Data(:,:,1),size);
@@ -104,7 +124,7 @@ Data(:,:,3) = zeros(2,num_elements);
 end
 
 % Plotting:
-function plot_obj = create_plot(x,y, resolution)
+function plot_obj = create_plot(x, y , resolution)
 % Creates the plot that will hold the current state of the model
 % Takes:
 %   x: Starting x data
@@ -121,6 +141,10 @@ function plot_obj = create_plot(x,y, resolution)
     
     % Modify Element Plot Data
     plot_obj(1).MarkerSize = 20;
+
+    % Plot Size:
+    xlim([-5 5])
+    ylim([-5 5])
 
 end
 
@@ -167,7 +191,7 @@ function y = u_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = 5 * ones(1,width(x));
+    y = -1 * x.^2 + 5;
 
 end
 function y = l_wall(x)
@@ -177,7 +201,7 @@ function y = l_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = sin(x) - 5;
+    y = x.^2 - 5;
 
 end
 
@@ -338,10 +362,13 @@ function [rP1, rP2] = correct_element_position(r1, v1, r2, v2, size)
     dt = roots([dot(dv,dv),-2 * dot(dr,dv), dot(dr,dr) - (4 * R_sqr)]);
     
     % Choose the positive root:
-    if dt(1) > 0
+    condition = dt > 0;
+    if sum(condition) == 2
         dt = dt(1);
+    elseif sum(condition) == 1
+        dt = dt(condition);
     else
-        dt = dt(2);
+        dt = 0;
     end
     
     % Make Correction:
@@ -364,8 +391,15 @@ function [aP1, aP2] = element_collision_force(r1, v1, r2, v2, dt)
     % Calculate Final velocity (only one is necessary):
     dv = v1 - v2; % Note direction (1 - 2)
     dr = r1 - r2;
+    
+    dr_mag = dot(dr,dr);
 
-    vP1 = v1 - (dot(dv,dr) ./ dot(dr,dr)) .* dr;
+    if dr_mag ~= 0
+        % This means no "NaN" issues
+        vP1 = v1 - (dot(dv,dr) ./ dr_mag) .* dr;
+    else
+        vP1 = v1;
+    end
     
     % Calculate Force on 1:
     aP1 = (vP1 - v1) ./ dt;
