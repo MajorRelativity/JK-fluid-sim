@@ -1,23 +1,23 @@
 %% Testing Section
-%main()
+main()
 close all
-r1 = [0; 0]
-r2 = [.5; 0]
-v1 = [1; 0]
-v2 = [1; 0]
-size = .5
-
-circles([r1(1) r2(1)],[r1(2) r2(2)],size)
-xlim([-2 2])
-ylim([-1.5 1.5])
-
-figure
-[r1, r2] = correct_element_position(r1, v1, r2, v2, size)
-circles([r1(1) r2(1)],[r1(2) r2(2)],size)
-xlim([-2 2])
-ylim([-1.5 1.5])
-dr = r1 - r2
-sqrt(dot(dr,dr))
+% r1 = [0; 0]
+% r2 = [.5; 0]
+% v1 = [1; 0]
+% v2 = [1; 0]
+% size = .5
+% 
+% circles([r1(1) r2(1)],[r1(2) r2(2)],size)
+% xlim([-2 2])
+% ylim([-1.5 1.5])
+% 
+% figure
+% [r1, r2] = correct_element_position(r1, v1, r2, v2, size)
+% circles([r1(1) r2(1)],[r1(2) r2(2)],size)
+% xlim([-2 2])
+% ylim([-1.5 1.5])
+% dr = r1 - r2
+% sqrt(dot(dr,dr))
 
 
 
@@ -25,7 +25,7 @@ sqrt(dot(dr,dr))
 function main()
     
     close
-    simulate_fluid(.1,100,10,.4,.50,9.81)
+    simulate_fluid(.01,100,2,.4,1,9.81)
 
 end
 
@@ -67,7 +67,6 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
         Data(2,:,3) = Data(2,:,3) - g;
 
         % Update Plot:
-        pause(.1)
         x(:) = Data(1,:,1);
         y(:) = Data(2,:,1);
         refreshdata(plot_obj,'caller')
@@ -191,7 +190,7 @@ function y = u_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = -1 * x.^2 + 5;
+    y = 2 * ones(size(x));
 
 end
 function y = l_wall(x)
@@ -201,7 +200,7 @@ function y = l_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = x.^2 - 5;
+    y = (1/4) * x.^2 - 5;
 
 end
 
@@ -303,7 +302,7 @@ function Data = run_element_collisions(Data,collisions,size,dt)
         v2 = Data(:,E2,2);
 
         % Run Corrections and Collisions
-        [r1, r2] = correct_element_position(r1,v1,r2,v2,size);
+        %[r1, r2] = correct_element_position(r1,v1,r2,v2,size);
         [aP1, aP2] = element_collision_force(r1, v1, r2, v2, dt);
 
         % Update Position and Acceleration:
