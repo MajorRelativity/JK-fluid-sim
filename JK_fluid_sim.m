@@ -1,31 +1,31 @@
 %% Testing Section
-%main()
-close all
-r1 = [0; 0]
-r2 = [.5; 0]
-v1 = [1; 0]
-v2 = [1; 0]
-size = .5
-
-circles([r1(1) r2(1)],[r1(2) r2(2)],size)
-xlim([-2 2])
-ylim([-1.5 1.5])
-
-figure
-[r1, r2] = correct_element_position(r1, v1, r2, v2, size)
-circles([r1(1) r2(1)],[r1(2) r2(2)],size)
-xlim([-2 2])
-ylim([-1.5 1.5])
-dr = r1 - r2
-sqrt(dot(dr,dr))
+main()
+% close all
+% r1 = [0; 0]
+% r2 = [.5; 0]
+% v1 = [1; 0]
+% v2 = [1; 0]
+% size = .5
+% 
+% circles([r1(1) r2(1)],[r1(2) r2(2)],size)
+% xlim([-2 2])
+% ylim([-1.5 1.5])
+% 
+% figure
+% [r1, r2] = correct_element_position(r1, v1, r2, v2, size)
+% circles([r1(1) r2(1)],[r1(2) r2(2)],size)
+% xlim([-2 2])
+% ylim([-1.5 1.5])
+% dr = r1 - r2
+% sqrt(dot(dr,dr))
 
 
 
 %% Main
 function main()
     
-    close
-    simulate_fluid(.1,100,10,.4,.50,9.81)
+    close all
+    simulate_fluid(.0001,200,200,.5,.98,400)
 
 end
 
@@ -40,7 +40,7 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
 %   sim_time: The amount of seconds you want to run the simulation for 
 
     % Run Setup:
-    Data = spawn_elements([0;0],num_elements,3);
+    Data = spawn_elements([0;0],num_elements,1);
 
     x = Data(1,:,1);
     y = Data(2,:,1);
@@ -55,8 +55,7 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
         Data = forward_walk(Data, num_elements, dt);
 
         % Molecule Collisions
-        collisions = detect_element_interaction(Data(:,:,1),size);
-        Data = run_element_collisions(Data,collisions,size,dt);
+        Data = run_element_collisions(Data,size);
 
         % Wall Collisions
         [u_collisions, l_collisions] = detect_wall_interaction(Data(:,:,1),size);
@@ -67,11 +66,12 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
         Data(2,:,3) = Data(2,:,3) - g;
 
         % Update Plot:
-        pause(.1)
-        x(:) = Data(1,:,1);
-        y(:) = Data(2,:,1);
-        refreshdata(plot_obj,'caller')
-        drawnow
+        if mod(t, 25 * dt) == 0
+            x(:) = Data(1,:,1);
+            y(:) = Data(2,:,1);
+            refreshdata(plot_obj,'caller')
+            drawnow
+        end
 
     end
 
@@ -92,7 +92,10 @@ function Data = spawn_elements(center, num_elements, vmax)
 %   position derivatives along the depth (r, v, a)
 
     % Positions:
-    Data(:,:,1) = repmat(center,1,num_elements);
+    Data(:,:,1) = zeros(2,num_elements);
+    for i = 1:num_elements
+         Data(:,i,1) = center + [i*sin(i)/6; i*cos(i)/6];
+    end
 
     % Random Velocities:
     Data(:,:,2) = rand([2 num_elements]) .* randi(vmax,[1 num_elements]);
@@ -114,6 +117,8 @@ function Data = forward_walk(Data,num_elements,dt)
 
 % Velocity:
 Data(:,:,2) = Data(:,:,2) + dt * Data(:,:,3);
+%Data(:,:,2)
+%Data(:,:,3)
 
 % Position:
 Data(:,:,1) = Data(:,:,1) + dt * Data(:,:,2); 
@@ -191,7 +196,7 @@ function y = u_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = -1 * x.^2 + 5;
+    y = 50 .* ones(1,length(x));
 
 end
 function y = l_wall(x)
@@ -201,7 +206,7 @@ function y = l_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = x.^2 - 5;
+    y = x.^2 .* sin(x) - 3;
 
 end
 
@@ -279,70 +284,125 @@ end
 
 %% Molecule Collision Detection and Correction:
 % Manage Collisions:
-function Data = run_element_collisions(Data,collisions,size,dt)
+function Data = run_element_collisions(Data,size)
 % Manages the collisions one by one for each pair of elements
 % Takes:
 %   Data (3D Matrix): Contains all of the position, velocity, and
 %       acceleration data
-%   collisions (Matrix): Contains two columns with column indices for the
-%       Data matrix indicating where there is a collision. For example
-%       [1 2] would mean element 1 is colliding with element 2
 % Returns:
 %   Data: Updated
 
-    for i = 1:height(collisions)
         
         % Assign Values:
-        E1 = collisions(i,1);
-        E2 = collisions(i,2);
-
-        r1 = Data(:,E1,1);
-        r2 = Data(:,E2,1);
-
-        v1 = Data(:,E1,2);
-        v2 = Data(:,E2,2);
+        data = Data(:,:,1);
+        max_R = 4;
 
         % Run Corrections and Collisions
-        [r1, r2] = correct_element_position(r1,v1,r2,v2,size);
-        [aP1, aP2] = element_collision_force(r1, v1, r2, v2, dt);
+        [R, dR] = calculate_distances(data, size, max_R);
+        F = element_force(R,max_R);
+        aP = build_accelerations(dR,F);
 
-        % Update Position and Acceleration:
-        Data(:,E1,1) = r1;
-        Data(:,E2,1) = r2;
-
-        Data(:,E1,3) = Data(:,E1,3) + aP1;
-        Data(:,E2,3) = Data(:,E2,3) + aP2;
-    
-    end
+        % Update Acceleration:
+        Data(:,:,3) = Data(:,:,3) + aP;
 
 end
 
 % Detection, Collision, and Correction
-function collisions = detect_element_interaction(data, size)
-% Returns a two column matrix where each value in the row
-% denote the identity of the two particles that are colliding.
+function F = element_force(R,max_R)
+% Determines the force on an element based on the distance from the center
+% of that element.
+% Takes:
+%   R: The magnitude of the distance between elements. In the form of an
+%   upper traingular matrix
+% Returns:
+%   F: The magnitude of the force between elements with respect to the
+%   element generating the force. Positive is away, negative is towards!
+%   Shound mirror the format of R
+    
+    F = zeros(length(R));
+    
+    % For less than than 1:
+    index = R <= 1 & R ~= 0; % Ignore anything that is 0
+    M = 10000;
+    F(index) = parabola(R(index), M, -1, 1);
+
+    % For greater than than 1
+    index = R > 1;
+    M = -100;
+    F(index) = parabola(R(index), M, 1, max_R);
+
+    function f = parabola(r, extrema, root1, root2)
+        % Defines a parabola based on extrema and roots
+        r_avg = (root1 + root2) / 2;
+        A = extrema / ((r_avg - root1).*(r_avg - root2));
+        f = A.*(r - root1).*(r - root2);
+
+    end
+
+
+end
+function [R, dR] = calculate_distances(data, size, max_R)
+% Returns a upper triangular matrix containing the distances between
+% particles in the row and column
 % Takes:
 %   data: A matrix of 2D position vectors where each column is a 
 %       different point
 %   size: The size of each molecule
+%   max_radii_away: The maximum distance in radii that particles can be
+%       from each other
 % Returns:
-%   collisions: A two column matrix with indices in each of the columns
-
-    collisions = boolean(zeros(width(data))); % Logical array
-    size_sqr = size^2;
+%   R: An upper triangular matrix of distances
+%   dR: A normalized 3D upper traingular matrix. The first layer in depth
+%   is x and the second is y
+    
+    w = width(data);
+    R = zeros(w);
+    dR = zeros(w, w, 2);
+    
     
     for j = 1:(width(data) - 1) % Do not check the last piece of data
     
         dr = data(:, (j + 1):end ) - data(:,j);
-        L_sqr = sum(dr .* dr);
-        collisions(j,(j+1):end) = L_sqr <= size_sqr;
-    
+        r = sqrt(sum(dr .* dr));
+        R(j,(j+1):end) = r;
+        
+        dR(j,(j + 1):end, 1) = dr(1,:) ./ r; % Save Normalized Versions
+        dR(j,(j + 1):end, 2) = dr(2,:) ./ r; 
+   
     end
 
-    [row,col] = find(collisions);
-    collisions = [row col];
+    % Turn R into distance in radii. Change all radii more tha max_radii to
+    % 0 as this will represent no interaction.
+
+    R = R / size;
+    R(R >= max_R) = 0;
+
     
 end
+function a = build_accelerations(dR,F)
+% Takes the forces and the unit 3D matrix of unit vectors and sums them to
+% create the accelerations for each particle!
+% Takes:
+%   F: A 2D matrix of all of the force magnitudes between element #row and
+%   element #column
+%   dR: The unit vectors corrosponding to the above where the depth is
+%   differenet dimensions of position
+% Returns:
+%   a: A matrix where each column is a different vector acceleration for an
+%   element.
+
+    A = F .* dR; % Turn all of the unit vectors into full force vectors
+    
+    % To get the full force on a element n, you must take the sum of column
+    % n and row n and add them together. This accounts for the forces on
+    % all particles.
+    
+    a = sum(A,1) + permute(sum(-1 .* A,2),[2,1,3]);
+    a = permute(a, [3 2 1]); % Switches the depth and the rows1
+
+end
+
+%% Defunct Functions
 function [rP1, rP2] = correct_element_position(r1, v1, r2, v2, size)
 % If the particles significantly overlap, then this function will move the
 % particles backwards in time until they no longer overlap.
@@ -411,4 +471,29 @@ function [aP1, aP2] = element_collision_force(r1, v1, r2, v2, dt)
 
 
 
+end
+function collisions = detect_element_interaction(data, size)
+% Returns a two column matrix where each value in the row
+% denote the identity of the two particles that are colliding.
+% Takes:
+%   data: A matrix of 2D position vectors where each column is a 
+%       different point
+%   size: The size of each molecule
+% Returns:
+%   collisions: A two column matrix with indices in each of the columns
+
+    collisions = boolean(zeros(width(data))); % Logical array
+    size_sqr = size^2;
+    
+    for j = 1:(width(data) - 1) % Do not check the last piece of data
+    
+        dr = data(:, (j + 1):end ) - data(:,j);
+        L_sqr = sum(dr .* dr);
+        collisions(j,(j+1):end) = L_sqr <= size_sqr;
+    
+    end
+
+    [row,col] = find(collisions);
+    collisions = [row col];
+    
 end
