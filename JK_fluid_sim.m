@@ -25,7 +25,7 @@ main()
 function main()
     
     close all
-    simulate_fluid(.001,100,2,.5,.5,9.81)
+    simulate_fluid(.0001,200,200,.5,.98,400)
 
 end
 
@@ -40,7 +40,7 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
 %   sim_time: The amount of seconds you want to run the simulation for 
 
     % Run Setup:
-    Data = spawn_elements([0;0],num_elements,3);
+    Data = spawn_elements([0;0],num_elements,1);
 
     x = Data(1,:,1);
     y = Data(2,:,1);
@@ -52,7 +52,7 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
     % Simulation Loop:
     for t = 0:dt:sim_time
         % Forward Walk:
-        Data = forward_walk(Data, num_elements, dt)
+        Data = forward_walk(Data, num_elements, dt);
 
         % Molecule Collisions
         Data = run_element_collisions(Data,size);
@@ -66,10 +66,12 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
         Data(2,:,3) = Data(2,:,3) - g;
 
         % Update Plot:
-        x(:) = Data(1,:,1);
-        y(:) = Data(2,:,1);
-        refreshdata(plot_obj,'caller')
-        drawnow
+        if mod(t, 25 * dt) == 0
+            x(:) = Data(1,:,1);
+            y(:) = Data(2,:,1);
+            refreshdata(plot_obj,'caller')
+            drawnow
+        end
 
     end
 
@@ -90,12 +92,13 @@ function Data = spawn_elements(center, num_elements, vmax)
 %   position derivatives along the depth (r, v, a)
 
     % Positions:
-    %Data(:,:,1) = repmat(center,1,num_elements);
-    Data(:,:,1) = [-1 1; 0 0];
+    Data(:,:,1) = zeros(2,num_elements);
+    for i = 1:num_elements
+         Data(:,i,1) = center + [i*sin(i)/6; i*cos(i)/6];
+    end
 
     % Random Velocities:
-    %Data(:,:,2) = rand([2 num_elements]) .* randi(vmax,[1 num_elements]);
-    Data(:,:,2) = [0 -30; 0 0]
+    Data(:,:,2) = rand([2 num_elements]) .* randi(vmax,[1 num_elements]);
 
     % Accelerations:
     Data(:,:,3) = zeros(2,num_elements);
@@ -114,6 +117,8 @@ function Data = forward_walk(Data,num_elements,dt)
 
 % Velocity:
 Data(:,:,2) = Data(:,:,2) + dt * Data(:,:,3);
+%Data(:,:,2)
+%Data(:,:,3)
 
 % Position:
 Data(:,:,1) = Data(:,:,1) + dt * Data(:,:,2); 
@@ -191,7 +196,7 @@ function y = u_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = 6 .* ones(1,length(x));
+    y = 50 .* ones(1,length(x));
 
 end
 function y = l_wall(x)
@@ -201,7 +206,7 @@ function y = l_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = zeros(size(x));
+    y = x.^2 .* sin(x) - 3;
 
 end
 
@@ -318,12 +323,12 @@ function F = element_force(R,max_R)
     
     % For less than than 1:
     index = R <= 1 & R ~= 0; % Ignore anything that is 0
-    M = 1000;
+    M = 10000;
     F(index) = parabola(R(index), M, -1, 1);
 
     % For greater than than 1
     index = R > 1;
-    M = -1;
+    M = -100;
     F(index) = parabola(R(index), M, 1, max_R);
 
     function f = parabola(r, extrema, root1, root2)
@@ -386,14 +391,14 @@ function a = build_accelerations(dR,F)
 %   a: A matrix where each column is a different vector acceleration for an
 %   element.
 
-    A = F .* dR % Turn all of the unit vectors into full force vectors
+    A = F .* dR; % Turn all of the unit vectors into full force vectors
     
     % To get the full force on a element n, you must take the sum of column
     % n and row n and add them together. This accounts for the forces on
     % all particles.
     
     a = sum(A,1) + permute(sum(-1 .* A,2),[2,1,3]);
-    a = permute(a, [3 2 1]) % Switches the depth and the rows1
+    a = permute(a, [3 2 1]); % Switches the depth and the rows1
 
 end
 
