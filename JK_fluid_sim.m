@@ -1,31 +1,11 @@
 %% Testing Section
 main()
-% close all
-% r1 = [0; 0]
-% r2 = [.5; 0]
-% v1 = [1; 0]
-% v2 = [1; 0]
-% size = .5
-% 
-% circles([r1(1) r2(1)],[r1(2) r2(2)],size)
-% xlim([-2 2])
-% ylim([-1.5 1.5])
-% 
-% figure
-% [r1, r2] = correct_element_position(r1, v1, r2, v2, size)
-% circles([r1(1) r2(1)],[r1(2) r2(2)],size)
-% xlim([-2 2])
-% ylim([-1.5 1.5])
-% dr = r1 - r2
-% sqrt(dot(dr,dr))
-
-
 
 %% Main
 function main()
     
     close all
-    simulate_fluid(.0001,200,200,.5,.98,400)
+    simulate_fluid(.0001,200,100,.5,.98,400)
 
 end
 
@@ -42,12 +22,7 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
     % Run Setup:
     Data = spawn_elements([0;0],num_elements,1);
 
-    x = Data(1,:,1);
-    y = Data(2,:,1);
-    plot_obj = create_plot(x, y, 100);
-
-    plot_obj(1).XDataSource = 'x';
-    plot_obj(1).YDataSource = 'y';
+    plot_obj = create_plot(Data(:,:,1),size,'c', 100);
 
     % Simulation Loop:
     for t = 0:dt:sim_time
@@ -67,9 +42,8 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
 
         % Update Plot:
         if mod(t, 25 * dt) == 0
-            x(:) = Data(1,:,1);
-            y(:) = Data(2,:,1);
-            refreshdata(plot_obj,'caller')
+            delete(plot_obj)
+            plot_obj = create_plot(Data(:,:,1),size);
             drawnow
         end
 
@@ -129,27 +103,32 @@ Data(:,:,3) = zeros(2,num_elements);
 end
 
 % Plotting:
-function plot_obj = create_plot(x, y , resolution)
+function plot_obj = create_plot(data, size, mode, resolution)
 % Creates the plot that will hold the current state of the model
 % Takes:
-%   x: Starting x data
-%   y: Starting y data
+%   data: Only contains the position data
+%   size: The radius of each circle
+%   mode: 'c' = create. 'u' = Update
 %   resolution: Resolution of the wall line data
-
-    % Create Wall Data:
-    x_wall = linspace(-10,10,resolution);
-    y_u_wall = u_wall(x_wall);
-    y_l_wall = l_wall(x_wall);
+% Returns:
+%   plot_obj: Contains the handles for all of the elements on the plot
     
-    % Create Plot Object
-    plot_obj = plot(x,y,'bo',x_wall,y_u_wall,x_wall,y_l_wall); 
+    plot_obj = viscircles(data',size,Color="blue");
+    if nargin == 4 && mode == 'c'
+        % Create Wall Data:
+        x_wall = linspace(-10,10,resolution);
+        y_u_wall = u_wall(x_wall);
+        y_l_wall = l_wall(x_wall);
+        
+        % Create Plot Object
+        hold on
+        plot(x_wall,y_u_wall,x_wall,y_l_wall); 
+        hold off
     
-    % Modify Element Plot Data
-    plot_obj(1).MarkerSize = 20;
-
-    % Plot Size:
-    xlim([-5 5])
-    ylim([-5 5])
+        % Plot Size:
+        xlim([-5 5])
+        ylim([-5 5])
+    end
 
 end
 
@@ -206,7 +185,7 @@ function y = l_wall(x)
 % Returns:
 %   y: The y value associated with that x value
 
-    y = x.^2 .* sin(x) - 3;
+    y = (1/3)*x.^2 - 3;
 
 end
 
