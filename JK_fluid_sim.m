@@ -184,8 +184,8 @@ function y = l_wall(x)
 %   x: The x values you desire
 % Returns:
 %   y: The y value associated with that x value
-
-    y = (1/3)*x.^2 - 3;
+    
+    y = x;
 
 end
 
