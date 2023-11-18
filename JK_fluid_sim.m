@@ -5,13 +5,13 @@ main()
 function main()
     
     close all
-    simulate_fluid(.0001,200,100,.5,.98,400)
+    simulate_fluid(.0001,200,100,.5,.001,.98,400)
 
 end
 
 %% Simulation Runner:
 % Main Function:
-function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
+function simulate_fluid(dt,sim_time,num_elements,size,f_f,n_f,g)
 % The primary function used to run the simulation
 % Takes:
 %   dt: The time step between each iteration of the simulation
@@ -34,8 +34,8 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
 
         % Wall Collisions
         [u_collisions, l_collisions] = detect_wall_interaction(Data(:,:,1),size);
-        Data = run_wall_collisions(Data,l_collisions,true,v_loss,size,dt);
-        Data = run_wall_collisions(Data,u_collisions,false,v_loss,size,dt);
+        Data = run_wall_collisions(Data,l_collisions,true,f_f,n_f,size,dt);
+        Data = run_wall_collisions(Data,u_collisions,false,f_f,n_f,size,dt);
 
         % Add Gravity:
         Data(2,:,3) = Data(2,:,3) - g;
@@ -135,14 +135,16 @@ end
 %% Wall Collision Detection and Correction:
 
 % Manage Wall Collisions:
-function Data = run_wall_collisions(Data,collisions,l,v_loss,size,dt)
+function Data = run_wall_collisions(Data,collisions,l,f_f,n_f,size,dt)
 % Manages the wall collisions for each individual element
 % Takes:
 %   Data (3D Matrix): Contains all of the important data
-%   u_collisions: Row vector indicating which elements collide with the
+%   collisions: Row vector indicating which elements collide with the
 %       upper wall or lower wall
 %   l: True if colliding with lower wall
 %   size: Radius of the element
+%   f_f: The friction factor
+%   n_f: The proportion applied to the NORMAL acceleration
 %   dt: Time step
 % Returns:
 %   Data: Updated
@@ -157,7 +159,7 @@ function Data = run_wall_collisions(Data,collisions,l,v_loss,size,dt)
     % Run Collisions:
     for i = 1:num_collisions
         
-        aP(:,i) = wall_collision_force(r(:,i),v(:,i),l,v_loss,dt);
+        aP(:,i) = wall_collision_force(r(:,i),v(:,i),l,f_f,n_f,dt);
 
     end
     
@@ -185,7 +187,8 @@ function y = l_wall(x)
 % Returns:
 %   y: The y value associated with that x value
     
-    y = x;
+    %y = ones(size(x)) - 2;
+    y = x + sin(x);
 
 end
 
@@ -226,14 +229,15 @@ function data = correct_element_position_wall(data,size,l)
     end
 
 end
-function aP = wall_collision_force(r, v, l, v_loss, dt)
+function aP = wall_collision_force(r, v, l, friction_factor, norm_factor, dt)
 % Calculates the applied acceleration on an element interacting with a wall
 % Takes:
 %   r (vector): The position of the element
 %   v (vector): The velocity of the element
 %   l (bool): True if the interaction is with a lower wall
-%   v_loss (float): The proportion of velocity lost from the wall collision
-%       (0 to 1)
+%   friction_factor (float): The proportion of vertical acceleration
+%       applied to the collision as friction.
+%   norm_factor: The scale applied to the normal acceleration (must be 0 to 1)
 %   dt: The time that the collision happens over
 % Returns:
 %   aP (vector): Applied acceleration to the element
@@ -250,15 +254,26 @@ function aP = wall_collision_force(r, v, l, v_loss, dt)
         cross_vector = [0; 0; 1];
     end
     
-    N = cross([T;0],cross_vector);
-    n = N / norm(N);
+    N = cross([T;0],cross_vector); % Normal Vector
+    n = N / norm(N); % Normal Vector normalized
 
     n = n(1:2,1); % Return to 2D
 
-    % Acceleration:
+
+    % Calculate Friction:
+    norm_T = T / norm(T);
+    projection_coeff = -1 * dot(v,norm_T); % We want project to face opposite the velocity
+    
+    f = projection_coeff * friction_factor * norm_T ./ dt;
+
+    % Normal Acceleration Magnitude:
+    a_magnitude = -2 * dot(v,n) * norm_factor / dt;
+
+    % Full Acceleration:
     % This can be derived by combining the equation for reflection with the
     % equation for acceleration
-    aP = (-2 .* dot(v,n) .* n .* v_loss) ./ dt;
+    % Includes Friction
+    aP = ( a_magnitude .* n) + f;
 end
 
 %% Molecule Collision Detection and Correction:
