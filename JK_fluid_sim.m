@@ -5,7 +5,7 @@ main()
 function main()
     
     close all
-    simulate_fluid(.0001,200,100,.5,.001,.98,400)
+    simulate_fluid(.0001,200,100,.5,.001,.01,400)
 
 end
 
@@ -20,9 +20,9 @@ function simulate_fluid(dt,sim_time,num_elements,size,f_f,n_f,g)
 %   sim_time: The amount of seconds you want to run the simulation for 
 
     % Run Setup:
-    Data = spawn_elements([0;0],num_elements,1);
+    Data = spawn_elements([0;0],size, num_elements,1);
 
-    plot_obj = create_plot(Data(:,:,1),size,'c', 100);
+    plot_obj = create_plot(Data(:,:,1),size,'c', 200);
 
     % Simulation Loop:
     for t = 0:dt:sim_time
@@ -53,7 +53,7 @@ end
 
 %% Data Manipulation:
 % Setup
-function Data = spawn_elements(center, num_elements, vmax)
+function Data = spawn_elements(center, size, num_elements, vmax)
 % Creates the data matrix that will be used to store and keep track of the
 % elements, spawning them at a default position. The velocities are random
 % between a given speed interval.
@@ -67,9 +67,25 @@ function Data = spawn_elements(center, num_elements, vmax)
 
     % Positions:
     Data(:,:,1) = zeros(2,num_elements);
-    for i = 1:num_elements
-         Data(:,i,1) = center + [i*sin(i)/6; i*cos(i)/6];
+
+    length_x = sqrt(num_elements) * 2 * size;
+    c_point = center - length_x/2; % Set first point
+    left_x = c_point(1);
+    right_x = center(1) + length_x/2;
+    
+    c = 1; % Counter Variable
+    while c <= num_elements
+        if c_point(1) >= right_x
+            c_point(2) = c_point(2) + 2 * size;
+            c_point(1) = left_x;
+        end
+
+        Data(:,c,1) = c_point;
+        c_point(1) = c_point(1) + 2 * size;
+        c = c + 1;
     end
+
+    
 
     % Random Velocities:
     Data(:,:,2) = rand([2 num_elements]) .* randi(vmax,[1 num_elements]);
@@ -116,7 +132,7 @@ function plot_obj = create_plot(data, size, mode, resolution)
     plot_obj = viscircles(data',size,Color="blue");
     if nargin == 4 && mode == 'c'
         % Create Wall Data:
-        x_wall = linspace(-10,10,resolution);
+        x_wall = linspace(-30,30,resolution);
         y_u_wall = u_wall(x_wall);
         y_l_wall = l_wall(x_wall);
         
@@ -126,8 +142,8 @@ function plot_obj = create_plot(data, size, mode, resolution)
         hold off
     
         % Plot Size:
-        xlim([-5 5])
-        ylim([-5 5])
+        xlim([-20 20])
+        ylim([-20 20])
     end
 
 end
@@ -187,8 +203,8 @@ function y = l_wall(x)
 % Returns:
 %   y: The y value associated with that x value
     
-    %y = ones(size(x)) - 2;
-    y = x + sin(x);
+    %y = ones(size(x)) - 10;
+    y = (1/8) * x.^2 + sin(x) - 12;
 
 end
 
