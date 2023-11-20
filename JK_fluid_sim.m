@@ -5,13 +5,13 @@ main()
 function main()
     
     close all
-    simulate_fluid(.0001,200,100,.5,.98,400)
+    simulate_fluid(.0001,100,300,.5,.001,.6,400)
 
 end
 
 %% Simulation Runner:
 % Main Function:
-function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
+function simulate_fluid(dt,sim_time,num_elements,size,f_f,n_f,g)
 % The primary function used to run the simulation
 % Takes:
 %   dt: The time step between each iteration of the simulation
@@ -20,9 +20,9 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
 %   sim_time: The amount of seconds you want to run the simulation for 
 
     % Run Setup:
-    Data = spawn_elements([0;0],num_elements,1);
+    Data = spawn_elements([-20;40],size, num_elements, 20);
 
-    plot_obj = create_plot(Data(:,:,1),size,'c', 100);
+    plot_obj = create_plot(Data(:,:,1),size,'c', 200);
 
     % Simulation Loop:
     for t = 0:dt:sim_time
@@ -34,8 +34,8 @@ function simulate_fluid(dt,sim_time,num_elements,size,v_loss,g)
 
         % Wall Collisions
         [u_collisions, l_collisions] = detect_wall_interaction(Data(:,:,1),size);
-        Data = run_wall_collisions(Data,l_collisions,true,v_loss,size,dt);
-        Data = run_wall_collisions(Data,u_collisions,false,v_loss,size,dt);
+        Data = run_wall_collisions(Data,l_collisions,true,f_f,n_f,size,dt);
+        Data = run_wall_collisions(Data,u_collisions,false,f_f,n_f,size,dt);
 
         % Add Gravity:
         Data(2,:,3) = Data(2,:,3) - g;
@@ -53,26 +53,40 @@ end
 
 %% Data Manipulation:
 % Setup
-function Data = spawn_elements(center, num_elements, vmax)
+function Data = spawn_elements(center, size, num_elements, elements_wide)
 % Creates the data matrix that will be used to store and keep track of the
 % elements, spawning them at a default position. The velocities are random
 % between a given speed interval.
 % Takes:
 %   center (vector): The spawning coordinates of the balls
 %   num_elements (int): Gives the number of balls
-%   vmax (int): The Maximum possible initial speed
+%   elements_wide (int): How many elements wide the spawning box can be
 % Returns:
 %   data: a 3D matrix with dimension rows, element number as columns, and
 %   position derivatives along the depth (r, v, a)
 
     % Positions:
     Data(:,:,1) = zeros(2,num_elements);
-    for i = 1:num_elements
-         Data(:,i,1) = center + [i*sin(i)/6; i*cos(i)/6];
+
+    length_x = elements_wide * 2 * size;
+    c_point = center - length_x/2; % Set first point
+    left_x = c_point(1);
+    right_x = center(1) + length_x/2;
+    
+    c = 1; % Counter Variable
+    while c <= num_elements
+        if c_point(1) >= right_x
+            c_point(2) = c_point(2) + 2 * size;
+            c_point(1) = left_x;
+        end
+
+        Data(:,c,1) = c_point;
+        c_point(1) = c_point(1) + 2 * size;
+        c = c + 1;
     end
 
     % Random Velocities:
-    Data(:,:,2) = rand([2 num_elements]) .* randi(vmax,[1 num_elements]);
+    Data(:,:,2) = zeros(2,num_elements);
 
     % Accelerations:
     Data(:,:,3) = zeros(2,num_elements);
@@ -116,7 +130,7 @@ function plot_obj = create_plot(data, size, mode, resolution)
     plot_obj = viscircles(data',size,Color="blue");
     if nargin == 4 && mode == 'c'
         % Create Wall Data:
-        x_wall = linspace(-10,10,resolution);
+        x_wall = linspace(-40,20,resolution);
         y_u_wall = u_wall(x_wall);
         y_l_wall = l_wall(x_wall);
         
@@ -126,8 +140,8 @@ function plot_obj = create_plot(data, size, mode, resolution)
         hold off
     
         % Plot Size:
-        xlim([-5 5])
-        ylim([-5 5])
+        xlim([-30 30])
+        ylim([-30 60])
     end
 
 end
@@ -135,14 +149,16 @@ end
 %% Wall Collision Detection and Correction:
 
 % Manage Wall Collisions:
-function Data = run_wall_collisions(Data,collisions,l,v_loss,size,dt)
+function Data = run_wall_collisions(Data,collisions,l,f_f,n_f,size,dt)
 % Manages the wall collisions for each individual element
 % Takes:
 %   Data (3D Matrix): Contains all of the important data
-%   u_collisions: Row vector indicating which elements collide with the
+%   collisions: Row vector indicating which elements collide with the
 %       upper wall or lower wall
 %   l: True if colliding with lower wall
 %   size: Radius of the element
+%   f_f: The friction factor
+%   n_f: The proportion applied to the NORMAL acceleration
 %   dt: Time step
 % Returns:
 %   Data: Updated
@@ -157,7 +173,7 @@ function Data = run_wall_collisions(Data,collisions,l,v_loss,size,dt)
     % Run Collisions:
     for i = 1:num_collisions
         
-        aP(:,i) = wall_collision_force(r(:,i),v(:,i),l,v_loss,dt);
+        aP(:,i) = wall_collision_force(r(:,i),v(:,i),l,f_f,n_f,dt);
 
     end
     
@@ -174,8 +190,22 @@ function y = u_wall(x)
 %   x: The x values you desire
 % Returns:
 %   y: The y value associated with that x value
+    
+    % Initialize
+    y = zeros(1,length(x));
 
-    y = 50 .* ones(1,length(x));
+    % Basic:
+    %y = 50 .* ones(1,length(x));
+    
+    % Upper Tube:
+    cond = x < -3;
+    y(cond) = -5 * (x(cond) + 3) + 11;
+
+    cond = x < 5 & x >= -3;
+    y(cond) = -2 * x(cond) + 5;
+
+    cond = x >= 5;
+    y(cond) = -5;
 
 end
 function y = l_wall(x)
@@ -185,7 +215,24 @@ function y = l_wall(x)
 % Returns:
 %   y: The y value associated with that x value
     
-    y = x;
+    % Initialize:
+    y = zeros(1,length(x));
+    
+    % Basic:
+    %y = (x.^2) ./ 30 - 20;
+
+    % Lower Tube:
+    cond = x < -20;
+    y(cond) = (1/8) * (x(cond) + 20).^2 + 29;
+
+    cond = x < 4 & x >= -20;
+    y(cond) = -(3/2) * x(cond) - 1;
+
+    cond = x < 10 & x >= 4;
+    y(cond) = -7;
+
+    cond = x >= 10;
+    y(cond) = -9;
 
 end
 
@@ -226,14 +273,15 @@ function data = correct_element_position_wall(data,size,l)
     end
 
 end
-function aP = wall_collision_force(r, v, l, v_loss, dt)
+function aP = wall_collision_force(r, v, l, friction_factor, norm_factor, dt)
 % Calculates the applied acceleration on an element interacting with a wall
 % Takes:
 %   r (vector): The position of the element
 %   v (vector): The velocity of the element
 %   l (bool): True if the interaction is with a lower wall
-%   v_loss (float): The proportion of velocity lost from the wall collision
-%       (0 to 1)
+%   friction_factor (float): The proportion of vertical acceleration
+%       applied to the collision as friction.
+%   norm_factor: The scale applied to the normal acceleration (should be .5 to 1)
 %   dt: The time that the collision happens over
 % Returns:
 %   aP (vector): Applied acceleration to the element
@@ -250,15 +298,26 @@ function aP = wall_collision_force(r, v, l, v_loss, dt)
         cross_vector = [0; 0; 1];
     end
     
-    N = cross([T;0],cross_vector);
-    n = N / norm(N);
+    N = cross([T;0],cross_vector); % Normal Vector
+    n = N / norm(N); % Normal Vector normalized
 
     n = n(1:2,1); % Return to 2D
 
-    % Acceleration:
+
+    % Calculate Friction:
+    norm_T = T / norm(T);
+    projection_coeff = -1 * dot(v,norm_T); % We want project to face opposite the velocity
+    
+    f = projection_coeff * friction_factor * norm_T ./ dt;
+
+    % Normal Acceleration Magnitude:
+    a_magnitude = -2 * dot(v,n) * norm_factor / dt;
+
+    % Full Acceleration:
     % This can be derived by combining the equation for reflection with the
     % equation for acceleration
-    aP = (-2 .* dot(v,n) .* n .* v_loss) ./ dt;
+    % Includes Friction
+    aP = ( a_magnitude .* n) + f;
 end
 
 %% Molecule Collision Detection and Correction:
@@ -343,11 +402,12 @@ function [R, dR] = calculate_distances(data, size, max_R)
     
         dr = data(:, (j + 1):end ) - data(:,j);
         r = sqrt(sum(dr .* dr));
+        r(r == 0) = 1; % To prevent divide by 0 issue
         R(j,(j+1):end) = r;
         
         dR(j,(j + 1):end, 1) = dr(1,:) ./ r; % Save Normalized Versions
         dR(j,(j + 1):end, 2) = dr(2,:) ./ r; 
-   
+
     end
 
     % Turn R into distance in radii. Change all radii more tha max_radii to
@@ -380,6 +440,7 @@ function a = build_accelerations(dR,F)
     a = permute(a, [3 2 1]); % Switches the depth and the rows1
 
 end
+
 
 %% Defunct Functions
 function [rP1, rP2] = correct_element_position(r1, v1, r2, v2, size)
