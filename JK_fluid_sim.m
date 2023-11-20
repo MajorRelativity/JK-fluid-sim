@@ -5,7 +5,7 @@ main()
 function main()
     
     close all
-    simulate_fluid(.0001,100,1000,.5,.001,.6,400)
+    simulate_fluid(.0001,100,300,.5,.001,.6,400)
 
 end
 
