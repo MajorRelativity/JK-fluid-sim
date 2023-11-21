@@ -42,7 +42,7 @@ function simulate_fluid(preset)
         % Update Plot:
         if mod(t, 25 * f_obj.dt) == 0
             delete(plot_obj)
-            plot_obj = create_plot(f_obj.Data(:,:,1),f_obj.e_radius);
+            plot_obj = create_plot(f_obj,f_obj.Data(:,:,1),f_obj.e_radius);
             drawnow
         end
 
@@ -88,7 +88,7 @@ function plot_obj = create_plot(f_obj,data, size, mode, resolution)
 %   plot_obj: Contains the handles for all of the elements on the plot
     
     plot_obj = viscircles(data',size,Color="blue");
-    if nargin == 4 && mode == 'c'
+    if nargin == 5 && mode == 'c'
         % Create Wall Data:
         x_wall = linspace(-40,20,resolution);
         y_u_wall = f_obj.u_wall(x_wall);
