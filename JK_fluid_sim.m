@@ -19,22 +19,20 @@ function simulate_fluid(preset)
     % Run Setup:
     f_obj = fluid_obj(preset);
     f_obj = f_obj.spawn_elements();
-    plot_obj = create_plot(f_obj,f_obj.Data(:,:,1),f_obj.e_radius,'c', 200);
+    plot_obj = create_plot(f_obj,'c', 200);
 
     % Simulation Loop:
     for t = 0:f_obj.dt:f_obj.sim_time
         % Forward Walk:
-        f_obj.Data = forward_walk(f_obj.Data, f_obj.e_num, f_obj.dt);
+        f_obj = f_obj.forward_walk();
 
         % Molecule Collisions
         f_obj.Data = run_element_collisions(f_obj.Data,f_obj.e_radius);
 
         % Wall Collisions
-        [u_collisions, l_collisions] = detect_wall_interaction(f_obj,f_obj.Data(:,:,1),f_obj.e_radius);
-        f_obj.Data = run_wall_collisions(f_obj,f_obj.Data,l_collisions,...
-            true,f_obj.friction_factor,f_obj.normal_factor,f_obj.e_radius,f_obj.dt);
-        f_obj.Data = run_wall_collisions(f_obj,f_obj.Data,u_collisions,...
-            false,f_obj.friction_factor,f_obj.normal_factor,f_obj.e_radius,f_obj.dt);
+        [u_collisions, l_collisions] = detect_wall_interaction(f_obj,f_obj.Data(:,:,1));
+        f_obj.Data = run_wall_collisions(f_obj,f_obj.Data,l_collisions,true);
+        f_obj.Data = run_wall_collisions(f_obj,f_obj.Data,u_collisions,false);
 
         % Add Gravity:
         f_obj.Data(2,:,3) = f_obj.Data(2,:,3) - f_obj.g;
@@ -42,7 +40,7 @@ function simulate_fluid(preset)
         % Update Plot:
         if mod(t, 25 * f_obj.dt) == 0
             delete(plot_obj)
-            plot_obj = create_plot(f_obj,f_obj.Data(:,:,1),f_obj.e_radius);
+            plot_obj = create_plot(f_obj);
             drawnow
         end
 
@@ -53,31 +51,8 @@ end
 %% Data Manipulation:
 % Setup
 
-% Forward Walk:
-function Data = forward_walk(Data,num_elements,dt)
-% Takes the data (as defined in spawn_elements) and iterates forward using
-% the Euler method over dt:
-% Takes:
-%   data (3D Matrix): As defined in spawn_elements
-%   dt: The interval to walk forward by
-% Returns:
-%   data (3D Matrix): Updated
-
-% Velocity:
-Data(:,:,2) = Data(:,:,2) + dt * Data(:,:,3);
-%Data(:,:,2)
-%Data(:,:,3)
-
-% Position:
-Data(:,:,1) = Data(:,:,1) + dt * Data(:,:,2); 
-
-% Reset Acceleration:
-Data(:,:,3) = zeros(2,num_elements);
-
-end
-
 % Plotting:
-function plot_obj = create_plot(f_obj,data, size, mode, resolution)
+function plot_obj = create_plot(f_obj, mode, resolution)
 % Creates the plot that will hold the current state of the model
 % Takes:
 %   data: Only contains the position data
@@ -87,8 +62,14 @@ function plot_obj = create_plot(f_obj,data, size, mode, resolution)
 % Returns:
 %   plot_obj: Contains the handles for all of the elements on the plot
     
+    % Initialize:
+    data = f_obj.Data(:,:,1);
+    size = f_obj.e_radius;
+    
+
+    % Main Code:
     plot_obj = viscircles(data',size,Color="blue");
-    if nargin == 5 && mode == 'c'
+    if nargin == 3 && mode == 'c'
         % Create Wall Data:
         x_wall = linspace(-40,20,resolution);
         y_u_wall = f_obj.u_wall(x_wall);
@@ -109,7 +90,7 @@ end
 %% Wall Collision Detection and Correction:
 
 % Manage Wall Collisions:
-function Data = run_wall_collisions(f_obj,Data,collisions,l,f_f,n_f,size,dt)
+function Data = run_wall_collisions(f_obj,Data,collisions,l)
 % Manages the wall collisions for each individual element
 % Takes:
 %   Data (3D Matrix): Contains all of the important data
@@ -122,6 +103,12 @@ function Data = run_wall_collisions(f_obj,Data,collisions,l,f_f,n_f,size,dt)
 %   dt: Time step
 % Returns:
 %   Data: Updated
+    
+    % Initialize:
+    f_f = f_obj.friction_factor;
+    n_f = f_obj.normal_factor;
+    size = f_obj.e_radius;
+    dt = f_obj.dt;
     
     % Load Data and Correct Position:
     r = correct_element_position_wall(f_obj,Data(:,collisions,1),size,l);
@@ -146,7 +133,7 @@ end
 % Wall Functions:
 
 % Detection, Collision, and Correction:
-function [u_collisions, l_collisions] = detect_wall_interaction(f_obj,data,size)
+function [u_collisions, l_collisions] = detect_wall_interaction(f_obj,data)
 % Determines if the elements are colliding with the wall or not. If they
 % are outside the wall this will register as a collision
 % Takes:
@@ -156,7 +143,11 @@ function [u_collisions, l_collisions] = detect_wall_interaction(f_obj,data,size)
 % Returns:
 %   u_collisions: A Row logical vector depicting upper wall collisions
 %   l_collisions: A row logical vector depicting lower wall collisions
-
+    
+    % Initialize:
+    size = f_obj.e_radius;
+    
+    % Code:
     x = data(1,:);
     y = data(2,:);
     

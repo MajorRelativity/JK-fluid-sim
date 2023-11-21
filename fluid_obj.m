@@ -3,6 +3,7 @@ classdef fluid_obj
     %simulation.
     %
     % Properties:
+    %   preset(str): Keeps track of what preset is used for the model
     %   sim_time (int): The amount of seconds you want to run the simulation for
     %   dt (float): The time step between each iteration of the simulation
     %   Data (3D Matrix): a 3D matrix with dimension rows, element number as columns, and
@@ -24,6 +25,7 @@ classdef fluid_obj
     %   
     %   
     properties
+        preset
         sim_time
         dt
         Data
@@ -53,7 +55,7 @@ classdef fluid_obj
                 obj.dt = .0001;
                 obj.sim_time = 100;
 
-                obj.e_num = 300;
+                obj.e_num = 100;
                 obj.e_radius = .5;
                 obj.spawn_center = [-20;40];
                 obj.elements_wide = 20;
@@ -66,6 +68,8 @@ classdef fluid_obj
             end
             
             % General:
+            obj.preset = preset;
+
             obj.Data(:,:,1) = zeros(2,obj.e_num); % Position
             obj.Data(:,:,2) = zeros(2,obj.e_num); % Velocity
             obj.Data(:,:,3) = zeros(2,obj.e_num); % Acceleration
@@ -100,7 +104,29 @@ classdef fluid_obj
             end
 
         end
+
+        % Modification:
+        function obj = forward_walk(obj)
+            % Takes the data (as defined in spawn_elements) and iterates forward using
+            % the Euler method over dt:
+            % Takes:
+            %   data (3D Matrix): As defined in spawn_elements
+            %   dt: The interval to walk forward by
+            % Returns:
+            %   data (3D Matrix): Updated
+            
+            % Velocity:
+            obj.Data(:,:,2) = obj.Data(:,:,2) + obj.dt * obj.Data(:,:,3);
+            
+            % Position:
+            obj.Data(:,:,1) = obj.Data(:,:,1) + obj.dt * obj.Data(:,:,2); 
+            
+            % Reset Acceleration:
+            obj.Data(:,:,3) = zeros(2,obj.e_num);
         
+        end
+
+
         % Wall Functions:
         function y = u_wall(~,x)
             % Defines the boundary you cannot find the element above!
