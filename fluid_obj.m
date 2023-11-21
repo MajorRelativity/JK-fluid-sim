@@ -22,7 +22,8 @@ classdef fluid_obj
     %
     %   
     %   g (float): Gravity constant
-    %   
+    %   x_axis (Row Vector): Beginning and end of plotted x axis
+    %   y_axis (Row Vector): same as above but for y
     %   
     properties
         preset
@@ -39,6 +40,8 @@ classdef fluid_obj
         normal_factor
 
         g
+        x_axis
+        y_axis
     end
     
     methods
@@ -48,22 +51,43 @@ classdef fluid_obj
             %preset is chosen:
             %   General: Ran in all instances
             %   test: Used to test new parameter combinations
+            %   tube: Used to analyze how changing pipe size effects flow
+            %       rate
             
             % Presets:
-            if preset == "test"
+            switch preset
+                case "test"
                 
-                obj.dt = .0001;
-                obj.sim_time = 100;
+                    obj.dt = .0001;
+                    obj.sim_time = 100;
+    
+                    obj.e_num = 100;
+                    obj.e_radius = .5;
+                    obj.spawn_center = [-20;40];
+                    obj.elements_wide = 20;
+    
+                    obj.friction_factor = .001;
+                    obj.normal_factor = .6;
+    
+                    obj.g = 400;
+                    obj.x_axis = [-30 30];
+                    obj.y_axis = [-30 30];
 
-                obj.e_num = 100;
-                obj.e_radius = .5;
-                obj.spawn_center = [-20;40];
-                obj.elements_wide = 20;
-
-                obj.friction_factor = .001;
-                obj.normal_factor = .6;
-
-                obj.g = 400;
+                case "tube"
+                    obj.dt = .0001;
+                    obj.sim_time = 100;
+    
+                    obj.e_num = 100;
+                    obj.e_radius = .5;
+                    obj.spawn_center = [-20;40];
+                    obj.elements_wide = 20;
+    
+                    obj.friction_factor = .001;
+                    obj.normal_factor = .6;
+    
+                    obj.g = 400;
+                    obj.x_axis = [-30 30];
+                    obj.y_axis = [-30 30];
 
             end
             
