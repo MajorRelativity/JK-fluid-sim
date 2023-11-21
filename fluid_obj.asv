@@ -1,0 +1,107 @@
+classdef fluid_obj
+    %FLUID_OBJ Contains all of the properties and data related to the fluid
+    %simulation.
+    %
+    % Properties:
+    %   sim_time (int): The amount of seconds you want to run the simulation for
+    %   dt (float): The time step between each iteration of the simulation
+    %   Data (3D Matrix): a 3D matrix with dimension rows, element number as columns, and
+    %       position derivatives along the depth (r, v, a)
+    %
+    %   e_num (int): The number of elements you want in the simulation
+    %   e_radius (float): The radius of each element
+    %   spawn_center ([x;y]): A vector showing where the center of the
+    %       elements spawn should be
+    %   elements_wide (int): How many elements wide the spawn rectangle
+    %       should be
+    %
+    %   friction_factor (float): Controls the friction between elements and the
+    %       wall
+    %   normal_factor (float): Controls the elasticity of the collision
+    %
+    %   
+    %   g (float): Gravity constant
+    %   
+    %   
+    properties
+        sim_time
+        dt
+        Data
+
+        e_num
+        e_radius
+        spawn_center
+        elements_wide
+        
+        friction_factor
+        normal_factor
+
+        g
+    end
+    
+    methods
+        % Setup:
+        function obj = fluid_obj(preset)
+            %FLUID_OBJ Construct an instance of this class based on which
+            %preset is chosen:
+            %   General: Ran in all instances
+            %   test: Used to test new parameter combinations
+            
+            % Presets:
+            if preset == "test"
+                
+                obj.dt = .0001;
+                obj.sim_time = 100;
+
+                obj.e_num = 300;
+                obj.e_radius = .5;
+                obj.spawn_center = [-20;40];
+                obj.elements_wide = 20;
+
+                obj.friction_factor = .001;
+                obj.normal_factor = .6;
+
+                obj.g = 400;
+
+            end
+            
+            % General:
+            obj.Data(:,:,1) = zeros(2,obj.e_num); % Position
+            obj.Data(:,:,2) = zeros(2,obj.e_num); % Velocity
+            obj.Data(:,:,3) = zeros(2,obj.e_num); % Acceleration
+
+        end
+
+        function spawn_elements(obj)
+            % Modifies the Data matrix to apply spawn positions based on
+            % the parameters defined in fluid_obj
+            % Takes:
+            %   obj.spawn_center (vector): The spawning coordinates of the balls
+            %   obj.e_num (int): Gives the number of balls
+            %   obj.elements_wide (int): How many elements wide the
+            %   spawning box can be
+        
+            % Positions:
+        
+            length_x = obj.elements_wide * 2 * obj.e_radius;
+            c_point = obj.spawn_center - length_x/2; % Set first point
+            left_x = c_point(1);
+            right_x = center(1) + length_x/2;
+            
+            c = 1; % Counter Variable
+            while c <= obj.e_num
+                if c_point(1) >= right_x
+                    c_point(2) = c_point(2) + 2 * obj.e_radius;
+                    c_point(1) = left_x;
+                end
+        
+                obj.Data(:,c,1) = c_point;
+                c_point(1) = c_point(1) + 2 * obj.e_radius;
+                c = c + 1;
+            end
+
+        end
+        
+    end
+end
+

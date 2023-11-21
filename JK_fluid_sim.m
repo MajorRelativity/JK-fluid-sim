@@ -5,45 +5,44 @@ main()
 function main()
     
     close all
-    simulate_fluid(.0001,100,300,.5,.001,.6,400)
+    simulate_fluid("test")
 
 end
 
 %% Simulation Runner:
 % Main Function:
-function simulate_fluid(dt,sim_time,num_elements,size,f_f,n_f,g)
+function simulate_fluid(preset)
 % The primary function used to run the simulation
 % Takes:
-%   dt: The time step between each iteration of the simulation
-%   num_elements: The number of elements you want in the simulation
-%   size: The size of each element in the simulation
-%   sim_time: The amount of seconds you want to run the simulation for 
+%   preset: Which preset the fluid object shoulds use!
 
     % Run Setup:
-    Data = spawn_elements([-20;40],size, num_elements, 20);
-
-    plot_obj = create_plot(Data(:,:,1),size,'c', 200);
+    f_obj = fluid_obj(preset);
+    f_obj = f_obj.spawn_elements();
+    plot_obj = create_plot(f_obj,f_obj.Data(:,:,1),f_obj.e_radius,'c', 200);
 
     % Simulation Loop:
-    for t = 0:dt:sim_time
+    for t = 0:f_obj.dt:f_obj.sim_time
         % Forward Walk:
-        Data = forward_walk(Data, num_elements, dt);
+        f_obj.Data = forward_walk(f_obj.Data, f_obj.e_num, f_obj.dt);
 
         % Molecule Collisions
-        Data = run_element_collisions(Data,size);
+        f_obj.Data = run_element_collisions(f_obj.Data,f_obj.e_radius);
 
         % Wall Collisions
-        [u_collisions, l_collisions] = detect_wall_interaction(Data(:,:,1),size);
-        Data = run_wall_collisions(Data,l_collisions,true,f_f,n_f,size,dt);
-        Data = run_wall_collisions(Data,u_collisions,false,f_f,n_f,size,dt);
+        [u_collisions, l_collisions] = detect_wall_interaction(f_obj,f_obj.Data(:,:,1),f_obj.e_radius);
+        f_obj.Data = run_wall_collisions(f_obj,f_obj.Data,l_collisions,...
+            true,f_obj.friction_factor,f_obj.normal_factor,f_obj.e_radius,f_obj.dt);
+        f_obj.Data = run_wall_collisions(f_obj,f_obj.Data,u_collisions,...
+            false,f_obj.friction_factor,f_obj.normal_factor,f_obj.e_radius,f_obj.dt);
 
         % Add Gravity:
-        Data(2,:,3) = Data(2,:,3) - g;
+        f_obj.Data(2,:,3) = f_obj.Data(2,:,3) - f_obj.g;
 
         % Update Plot:
-        if mod(t, 25 * dt) == 0
+        if mod(t, 25 * f_obj.dt) == 0
             delete(plot_obj)
-            plot_obj = create_plot(Data(:,:,1),size);
+            plot_obj = create_plot(f_obj.Data(:,:,1),f_obj.e_radius);
             drawnow
         end
 
@@ -53,45 +52,6 @@ end
 
 %% Data Manipulation:
 % Setup
-function Data = spawn_elements(center, size, num_elements, elements_wide)
-% Creates the data matrix that will be used to store and keep track of the
-% elements, spawning them at a default position. The velocities are random
-% between a given speed interval.
-% Takes:
-%   center (vector): The spawning coordinates of the balls
-%   num_elements (int): Gives the number of balls
-%   elements_wide (int): How many elements wide the spawning box can be
-% Returns:
-%   data: a 3D matrix with dimension rows, element number as columns, and
-%   position derivatives along the depth (r, v, a)
-
-    % Positions:
-    Data(:,:,1) = zeros(2,num_elements);
-
-    length_x = elements_wide * 2 * size;
-    c_point = center - length_x/2; % Set first point
-    left_x = c_point(1);
-    right_x = center(1) + length_x/2;
-    
-    c = 1; % Counter Variable
-    while c <= num_elements
-        if c_point(1) >= right_x
-            c_point(2) = c_point(2) + 2 * size;
-            c_point(1) = left_x;
-        end
-
-        Data(:,c,1) = c_point;
-        c_point(1) = c_point(1) + 2 * size;
-        c = c + 1;
-    end
-
-    % Random Velocities:
-    Data(:,:,2) = zeros(2,num_elements);
-
-    % Accelerations:
-    Data(:,:,3) = zeros(2,num_elements);
-
-end
 
 % Forward Walk:
 function Data = forward_walk(Data,num_elements,dt)
@@ -117,7 +77,7 @@ Data(:,:,3) = zeros(2,num_elements);
 end
 
 % Plotting:
-function plot_obj = create_plot(data, size, mode, resolution)
+function plot_obj = create_plot(f_obj,data, size, mode, resolution)
 % Creates the plot that will hold the current state of the model
 % Takes:
 %   data: Only contains the position data
@@ -131,8 +91,8 @@ function plot_obj = create_plot(data, size, mode, resolution)
     if nargin == 4 && mode == 'c'
         % Create Wall Data:
         x_wall = linspace(-40,20,resolution);
-        y_u_wall = u_wall(x_wall);
-        y_l_wall = l_wall(x_wall);
+        y_u_wall = f_obj.u_wall(x_wall);
+        y_l_wall = f_obj.l_wall(x_wall);
         
         % Create Plot Object
         hold on
@@ -149,7 +109,7 @@ end
 %% Wall Collision Detection and Correction:
 
 % Manage Wall Collisions:
-function Data = run_wall_collisions(Data,collisions,l,f_f,n_f,size,dt)
+function Data = run_wall_collisions(f_obj,Data,collisions,l,f_f,n_f,size,dt)
 % Manages the wall collisions for each individual element
 % Takes:
 %   Data (3D Matrix): Contains all of the important data
@@ -164,7 +124,7 @@ function Data = run_wall_collisions(Data,collisions,l,f_f,n_f,size,dt)
 %   Data: Updated
     
     % Load Data and Correct Position:
-    r = correct_element_position_wall(Data(:,collisions,1),size,l);
+    r = correct_element_position_wall(f_obj,Data(:,collisions,1),size,l);
     v = Data(:,collisions,2);
     
     num_collisions = width(r);
@@ -173,7 +133,7 @@ function Data = run_wall_collisions(Data,collisions,l,f_f,n_f,size,dt)
     % Run Collisions:
     for i = 1:num_collisions
         
-        aP(:,i) = wall_collision_force(r(:,i),v(:,i),l,f_f,n_f,dt);
+        aP(:,i) = wall_collision_force(f_obj,r(:,i),v(:,i),l,f_f,n_f,dt);
 
     end
     
@@ -184,60 +144,9 @@ function Data = run_wall_collisions(Data,collisions,l,f_f,n_f,size,dt)
 end
 
 % Wall Functions:
-function y = u_wall(x)
-% Defines the boundary you cannot find the element above!
-% Takes:
-%   x: The x values you desire
-% Returns:
-%   y: The y value associated with that x value
-    
-    % Initialize
-    y = zeros(1,length(x));
-
-    % Basic:
-    %y = 50 .* ones(1,length(x));
-    
-    % Upper Tube:
-    cond = x < -3;
-    y(cond) = -5 * (x(cond) + 3) + 11;
-
-    cond = x < 5 & x >= -3;
-    y(cond) = -2 * x(cond) + 5;
-
-    cond = x >= 5;
-    y(cond) = -5;
-
-end
-function y = l_wall(x)
-% Defines the boundary you cannot find the element below!
-% Takes:
-%   x: The x values you desire
-% Returns:
-%   y: The y value associated with that x value
-    
-    % Initialize:
-    y = zeros(1,length(x));
-    
-    % Basic:
-    %y = (x.^2) ./ 30 - 20;
-
-    % Lower Tube:
-    cond = x < -20;
-    y(cond) = (1/8) * (x(cond) + 20).^2 + 29;
-
-    cond = x < 4 & x >= -20;
-    y(cond) = -(3/2) * x(cond) - 1;
-
-    cond = x < 10 & x >= 4;
-    y(cond) = -7;
-
-    cond = x >= 10;
-    y(cond) = -9;
-
-end
 
 % Detection, Collision, and Correction:
-function [u_collisions, l_collisions] = detect_wall_interaction(data,size)
+function [u_collisions, l_collisions] = detect_wall_interaction(f_obj,data,size)
 % Determines if the elements are colliding with the wall or not. If they
 % are outside the wall this will register as a collision
 % Takes:
@@ -251,12 +160,12 @@ function [u_collisions, l_collisions] = detect_wall_interaction(data,size)
     x = data(1,:);
     y = data(2,:);
     
-    u_collisions = y + size >= u_wall(x);
-    l_collisions = y - size <= l_wall(x);
+    u_collisions = y + size >= f_obj.u_wall(x);
+    l_collisions = y - size <= f_obj.l_wall(x);
 
 
 end
-function data = correct_element_position_wall(data,size,l)
+function data = correct_element_position_wall(f_obj,data,size,l)
 % Corrects an element's position with respect to a wall. This is different
 % from it colliding with an element and should be prioritized.
 % Takes:
@@ -267,13 +176,13 @@ function data = correct_element_position_wall(data,size,l)
 %   data: The corrected positions of the elements
 
     if l
-        data(2,:) = size + l_wall(data(1,:)); 
+        data(2,:) = size + f_obj.l_wall(data(1,:)); 
     else
-        data(2,:) = u_wall(data(1,:)) - size; 
+        data(2,:) = f_obj.u_wall(data(1,:)) - size; 
     end
 
 end
-function aP = wall_collision_force(r, v, l, friction_factor, norm_factor, dt)
+function aP = wall_collision_force(f_obj,r, v, l, friction_factor, norm_factor, dt)
 % Calculates the applied acceleration on an element interacting with a wall
 % Takes:
 %   r (vector): The position of the element
@@ -291,10 +200,10 @@ function aP = wall_collision_force(r, v, l, friction_factor, norm_factor, dt)
     x = r(1);
     
     if l
-        T = [dx; l_wall(x + dx) - l_wall(x)];
+        T = [dx; f_obj.l_wall(x + dx) - f_obj.l_wall(x)];
         cross_vector = [0; 0; -1]; % Cross product used to determine direction of normal vector
     else
-        T = [dx; u_wall(x + dx) - u_wall(x)];
+        T = [dx; f_obj.u_wall(x + dx) - f_obj.u_wall(x)];
         cross_vector = [0; 0; 1];
     end
     
