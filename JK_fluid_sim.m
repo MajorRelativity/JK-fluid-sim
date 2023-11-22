@@ -1,17 +1,17 @@
 %% Testing Section
-main()
+result = main();
 
 %% Main
-function main()
+function f_obj = main()
     
     close all
-    simulate_fluid("test")
+    f_obj = simulate_fluid("test");
 
 end
 
 %% Simulation Runner:
 % Main Function:
-function simulate_fluid(preset)
+function f_obj = simulate_fluid(preset)
 % The primary function used to run the simulation
 % Takes:
 %   preset: Which preset the fluid object shoulds use!
@@ -20,6 +20,12 @@ function simulate_fluid(preset)
     f_obj = fluid_obj(preset);
     f_obj = f_obj.spawn_elements();
     plot_obj = create_plot(f_obj,'c', 200);
+
+    % Initialize Frame Recording
+    f_obj.frames = getframe();
+    frame_count = 2;
+
+    dt_per_frame = floor((1/f_obj.dt) / f_obj.fps);
 
     % Simulation Loop:
     for t = 0:f_obj.dt:f_obj.sim_time
@@ -38,10 +44,13 @@ function simulate_fluid(preset)
         f_obj.Data(2,:,3) = f_obj.Data(2,:,3) - f_obj.g;
 
         % Update Plot:
-        if mod(t, 25 * f_obj.dt) == 0
+        if mod(t, dt_per_frame * f_obj.dt) == 0
             delete(plot_obj)
             plot_obj = create_plot(f_obj);
             drawnow
+            f_obj.frames(frame_count) = getframe();
+
+            frame_count = frame_count + 1;
         end
 
     end
@@ -71,7 +80,7 @@ function plot_obj = create_plot(f_obj, mode, resolution)
     plot_obj = viscircles(data',size,Color="blue");
     if nargin == 3 && mode == 'c'
         % Create Wall Data:
-        x_wall = linspace(-40,20,resolution);
+        x_wall = linspace(f_obj.x_axis(1),f_obj.x_axis(2),resolution);
         y_u_wall = f_obj.u_wall(x_wall);
         y_l_wall = f_obj.l_wall(x_wall);
         
@@ -81,8 +90,8 @@ function plot_obj = create_plot(f_obj, mode, resolution)
         hold off
     
         % Plot Size:
-        xlim([-30 30])
-        ylim([-30 60])
+        xlim(f_obj.x_axis)
+        ylim(f_obj.y_axis)
     end
 
 end

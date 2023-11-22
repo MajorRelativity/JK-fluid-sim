@@ -24,6 +24,9 @@ classdef fluid_obj
     %   g (float): Gravity constant
     %   x_axis (Row Vector): Beginning and end of plotted x axis
     %   y_axis (Row Vector): same as above but for y
+    %
+    %   frames (Vector): will contain all of the frames from the simulation
+    %   fps (int): number of frames per second in final movie (approx)
     %   
     properties
         preset
@@ -42,6 +45,9 @@ classdef fluid_obj
         g
         x_axis
         y_axis
+
+        frames
+        fps
     end
     
     methods
@@ -59,19 +65,19 @@ classdef fluid_obj
                 case "test"
                 
                     obj.dt = .0001;
-                    obj.sim_time = 100;
+                    obj.sim_time = 3;
     
                     obj.e_num = 100;
                     obj.e_radius = .5;
-                    obj.spawn_center = [-20;40];
-                    obj.elements_wide = 20;
+                    obj.spawn_center = [0;20];
+                    obj.elements_wide = 15;
     
                     obj.friction_factor = .001;
                     obj.normal_factor = .6;
     
                     obj.g = 400;
                     obj.x_axis = [-30 30];
-                    obj.y_axis = [-30 30];
+                    obj.y_axis = [-20 40];
 
                 case "tube"
                     obj.dt = .0001;
@@ -87,12 +93,13 @@ classdef fluid_obj
     
                     obj.g = 400;
                     obj.x_axis = [-30 30];
-                    obj.y_axis = [-30 30];
+                    obj.y_axis = [-20 40];
 
             end
             
             % General:
             obj.preset = preset;
+            obj.fps = 30;
 
             obj.Data(:,:,1) = zeros(2,obj.e_num); % Position
             obj.Data(:,:,2) = zeros(2,obj.e_num); % Velocity
@@ -107,9 +114,8 @@ classdef fluid_obj
             %   obj.e_num (int): Gives the number of balls
             %   obj.elements_wide (int): How many elements wide the
             %   spawning box can be
-        
-            % Positions:
-        
+            
+            
             length_x = obj.elements_wide * 2 * obj.e_radius;
             c_point = obj.spawn_center - length_x/2; % Set first point
             left_x = c_point(1);
@@ -152,7 +158,7 @@ classdef fluid_obj
 
 
         % Wall Functions:
-        function y = u_wall(~,x)
+        function y = u_wall(obj,x)
             % Defines the boundary you cannot find the element above!
             % Takes:
             %   x: The x values you desire
@@ -161,22 +167,24 @@ classdef fluid_obj
             
             % Initialize
             y = zeros(1,length(x));
-        
-            % Basic:
-            %y = 50 .* ones(1,length(x));
             
             % Upper Tube:
-            cond = x < -3;
-            y(cond) = -5 * (x(cond) + 3) + 11;
-        
-            cond = x < 5 & x >= -3;
-            y(cond) = -2 * x(cond) + 5;
-        
-            cond = x >= 5;
-            y(cond) = -5;
+            switch obj.preset
+                case "test"
+                    y = 35 .* ones(1,length(x));
+                case "tube"
+                    cond = x < -3;
+                    y(cond) = -5 * (x(cond) + 3) + 11;
+                
+                    cond = x < 5 & x >= -3;
+                    y(cond) = -2 * x(cond) + 5;
+                
+                    cond = x >= 5;
+                    y(cond) = -5;
+            end
         
         end
-        function y = l_wall(~,x)
+        function y = l_wall(obj,x)
             % Defines the boundary you cannot find the element below!
             % Takes:
             %   x: The x values you desire
@@ -187,20 +195,23 @@ classdef fluid_obj
             y = zeros(1,length(x));
             
             % Basic:
-            %y = (x.^2) ./ 30 - 20;
-        
-            % Lower Tube:
-            cond = x < -20;
-            y(cond) = (1/8) * (x(cond) + 20).^2 + 29;
-        
-            cond = x < 4 & x >= -20;
-            y(cond) = -(3/2) * x(cond) - 1;
-        
-            cond = x < 10 & x >= 4;
-            y(cond) = -7;
-        
-            cond = x >= 10;
-            y(cond) = -9;
+            switch obj.preset
+                case "test"
+                    y = (x.^2) ./ 30 - 20;
+
+                case "tube"
+                    cond = x < -20;
+                    y(cond) = (1/8) * (x(cond) + 20).^2 + 29;
+                
+                    cond = x < 4 & x >= -20;
+                    y(cond) = -(3/2) * x(cond) - 1;
+                
+                    cond = x < 10 & x >= 4;
+                    y(cond) = -7;
+                
+                    cond = x >= 10;
+                    y(cond) = -9;
+            end
         
         end
 
