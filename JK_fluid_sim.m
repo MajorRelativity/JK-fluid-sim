@@ -33,7 +33,7 @@ function f_obj = simulate_fluid(preset)
         f_obj = f_obj.forward_walk();
 
         % Molecule Collisions
-        f_obj.Data = run_element_collisions(f_obj.Data,f_obj.e_radius);
+        f_obj.Data = run_element_collisions(f_obj,f_obj.Data,f_obj.e_radius);
 
         % Wall Collisions
         [u_collisions, l_collisions] = detect_wall_interaction(f_obj,f_obj.Data(:,:,1));
@@ -231,7 +231,7 @@ end
 
 %% Molecule Collision Detection and Correction:
 % Manage Collisions:
-function Data = run_element_collisions(Data,size)
+function Data = run_element_collisions(f_obj,Data,size)
 % Manages the collisions one by one for each pair of elements
 % Takes:
 %   Data (3D Matrix): Contains all of the position, velocity, and
@@ -246,7 +246,7 @@ function Data = run_element_collisions(Data,size)
 
         % Run Corrections and Collisions
         [R, dR] = calculate_distances(data, size, max_R);
-        F = element_force(R,max_R);
+        F = element_force(f_obj,R,max_R);
         aP = build_accelerations(dR,F);
 
         % Update Acceleration:
@@ -255,7 +255,7 @@ function Data = run_element_collisions(Data,size)
 end
 
 % Detection, Collision, and Correction
-function F = element_force(R,max_R)
+function F = element_force(f_obj,R,max_R)
 % Determines the force on an element based on the distance from the center
 % of that element.
 % Takes:
@@ -270,12 +270,12 @@ function F = element_force(R,max_R)
     
     % For less than than 1:
     index = R <= 1 & R ~= 0; % Ignore anything that is 0
-    M = 10000;
+    M = f_obj.e_repulse;
     F(index) = parabola(R(index), M, -1, 1);
 
     % For greater than than 1
     index = R > 1;
-    M = -100;
+    M = f_obj.e_attract;
     F(index) = parabola(R(index), M, 1, max_R);
 
     function f = parabola(r, extrema, root1, root2)

@@ -11,6 +11,9 @@ classdef fluid_obj
     %
     %   e_num (int): The number of elements you want in the simulation
     %   e_radius (float): The radius of each element
+    %   e_repulse (float): The maximum repulsion at the center of each
+    %       element
+    %   e_attract (float): The minimum attraction (negative) for each particle
     %   spawn_center ([x;y]): A vector showing where the center of the
     %       elements spawn should be
     %   elements_wide (int): How many elements wide the spawn rectangle
@@ -36,6 +39,8 @@ classdef fluid_obj
 
         e_num
         e_radius
+        e_repulse
+        e_attract
         spawn_center
         elements_wide
         
@@ -69,6 +74,8 @@ classdef fluid_obj
     
                     obj.e_num = 100;
                     obj.e_radius = .5;
+                    obj.e_repulse = 10000;
+                    obj.e_attract = -100;
                     obj.spawn_center = [0;20];
                     obj.elements_wide = 15;
     
@@ -85,6 +92,8 @@ classdef fluid_obj
     
                     obj.e_num = 100;
                     obj.e_radius = .5;
+                    obj.e_repulse = 10000;
+                    obj.e_attract = -100;
                     obj.spawn_center = [-20;40];
                     obj.elements_wide = 20;
     
