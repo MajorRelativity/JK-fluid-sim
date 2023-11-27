@@ -89,11 +89,11 @@ classdef fluid_obj
                     obj.dt = .0001;
                     obj.sim_time = 1;
     
-                    obj.e_num = 1000;
-                    obj.e_radius = .5;
+                    obj.e_num = 2000;
+                    obj.e_radius = .25;
                     obj.e_repulse = 10^5;
                     obj.e_attract = -1000;
-                    obj.spawn_region = [-200 0;0 200];
+                    obj.spawn_region = [-200 0;100 300];
     
                     obj.friction_factor = 0;
                     obj.normal_factor = .6;

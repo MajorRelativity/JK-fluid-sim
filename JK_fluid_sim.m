@@ -140,8 +140,6 @@ function Data = run_wall_collisions(f_obj,Data,collisions,l)
 
 end
 
-% Wall Functions:
-
 % Detection, Collision, and Correction:
 function [u_collisions, l_collisions] = detect_wall_interaction(f_obj,data)
 % Determines if the elements are colliding with the wall or not. If they
@@ -270,14 +268,14 @@ function F = element_force(f_obj,R,max_R)
     F = zeros(length(R));
     
     % For less than than 1:
-    index = R <= 1 & R ~= 0; % Ignore anything that is 0
+    index = R <=2 & R ~= 0; % Ignore anything that is 0
     M = f_obj.e_repulse;
-    F(index) = parabola(R(index), M, -1, 1);
+    F(index) = parabola(R(index), M, -2, 2);
 
     % For greater than than 1
-    index = R > 1;
+    index = R > 2;
     M = f_obj.e_attract;
-    F(index) = parabola(R(index), M, 1, max_R);
+    F(index) = parabola(R(index), M, 2, max_R);
 
     function f = parabola(r, extrema, root1, root2)
         % Defines a parabola based on extrema and roots
