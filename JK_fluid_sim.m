@@ -5,7 +5,7 @@ result = main();
 function f_obj = main()
     
     close all
-    f_obj = simulate_fluid("test");
+    f_obj = simulate_fluid("tube");
 
 end
 
@@ -47,6 +47,7 @@ function f_obj = simulate_fluid(preset)
         if mod(t, dt_per_frame * f_obj.dt) == 0
             delete(plot_obj)
             plot_obj = create_plot(f_obj);
+            disp("t = " + string(t))
             drawnow
             f_obj.frames(frame_count) = getframe();
 

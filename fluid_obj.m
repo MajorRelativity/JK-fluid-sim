@@ -14,10 +14,8 @@ classdef fluid_obj
     %   e_repulse (float): The maximum repulsion at the center of each
     %       element
     %   e_attract (float): The minimum attraction (negative) for each particle
-    %   spawn_center ([x;y]): A vector showing where the center of the
-    %       elements spawn should be
-    %   elements_wide (int): How many elements wide the spawn rectangle
-    %       should be
+    %   spawn_region ([x1 x2;y1 y2]): A matrix of two vectors designating
+    %       the bounds of the spawn region
     %
     %   friction_factor (float): Controls the friction between elements and the
     %       wall
@@ -30,7 +28,10 @@ classdef fluid_obj
     %
     %   frames (Vector): will contain all of the frames from the simulation
     %   fps (int): number of frames per second in final movie (approx)
-    %   
+    %
+    % Units:
+    %   t = seconds
+    %   d = mm
     properties
         preset
         sim_time
@@ -41,8 +42,7 @@ classdef fluid_obj
         e_radius
         e_repulse
         e_attract
-        spawn_center
-        elements_wide
+        spawn_region
         
         friction_factor
         normal_factor
@@ -74,35 +74,33 @@ classdef fluid_obj
     
                     obj.e_num = 100;
                     obj.e_radius = .5;
-                    obj.e_repulse = 10000;
-                    obj.e_attract = -100;
-                    obj.spawn_center = [0;20];
-                    obj.elements_wide = 15;
+                    obj.e_repulse = 100000;
+                    obj.e_attract = -1000;
+                    obj.spawn_region = [-10 10; 15 20];
     
                     obj.friction_factor = .001;
                     obj.normal_factor = .6;
     
-                    obj.g = 400;
+                    obj.g = 980;
                     obj.x_axis = [-30 30];
                     obj.y_axis = [-20 40];
 
                 case "tube"
                     obj.dt = .0001;
-                    obj.sim_time = 100;
+                    obj.sim_time = 1;
     
-                    obj.e_num = 100;
+                    obj.e_num = 1000;
                     obj.e_radius = .5;
-                    obj.e_repulse = 10000;
-                    obj.e_attract = -100;
-                    obj.spawn_center = [-20;40];
-                    obj.elements_wide = 20;
+                    obj.e_repulse = 10^5;
+                    obj.e_attract = -1000;
+                    obj.spawn_region = [-200 0;0 200];
     
-                    obj.friction_factor = .001;
+                    obj.friction_factor = 0;
                     obj.normal_factor = .6;
     
-                    obj.g = 400;
-                    obj.x_axis = [-30 30];
-                    obj.y_axis = [-20 40];
+                    obj.g = 981;
+                    obj.x_axis = [-40 40];
+                    obj.y_axis = [-20 60];
 
             end
             
@@ -124,23 +122,27 @@ classdef fluid_obj
             %   obj.elements_wide (int): How many elements wide the
             %   spawning box can be
             
-            
-            length_x = obj.elements_wide * 2 * obj.e_radius;
-            c_point = obj.spawn_center - length_x/2; % Set first point
-            left_x = c_point(1);
-            right_x = obj.spawn_center(1) + length_x/2;
-            
-            c = 1; % Counter Variable
-            while c <= obj.e_num
-                if c_point(1) >= right_x
-                    c_point(2) = c_point(2) + 2 * obj.e_radius;
-                    c_point(1) = left_x;
+            c = 1;
+            c_point = obj.spawn_region(:,1);
+            while c <= obj.e_num && c_point(2) <= obj.spawn_region(2,2)
+                if c_point(1) > obj.spawn_region(1,2) 
+                    % If x is over max spot, reset and increase y
+                    c_point(1) = obj.spawn_region(1,1);
+                    c_point(2) = c_point(2) + 2 * obj.e_radius; % add to y
                 end
-        
-                obj.Data(:,c,1) = c_point;
-                c_point(1) = c_point(1) + 2 * obj.e_radius;
-                c = c + 1;
+                
+                cond = obj.u_wall(c_point(1)) > c_point(2) && obj.l_wall(c_point(1)) < c_point(2);
+                
+                if cond
+                    % Place point
+                    obj.Data(:,c,1) = c_point;
+                    c = c + 1;
+                end
+                
+                c_point(1) = c_point(1) + 2 * obj.e_radius; % add to x
+
             end
+            disp("Spawned " + string(c - 1) + " elements")
 
         end
 
@@ -182,14 +184,11 @@ classdef fluid_obj
                 case "test"
                     y = 35 .* ones(1,length(x));
                 case "tube"
-                    cond = x < -3;
-                    y(cond) = -5 * (x(cond) + 3) + 11;
+                    cond = x < 0;
+                    y(cond) = (1/5) * x(cond).^2 + 4;
                 
-                    cond = x < 5 & x >= -3;
-                    y(cond) = -2 * x(cond) + 5;
-                
-                    cond = x >= 5;
-                    y(cond) = -5;
+                    cond = x >= 0;
+                    y(cond) = 4;
             end
         
         end
@@ -206,20 +205,20 @@ classdef fluid_obj
             % Basic:
             switch obj.preset
                 case "test"
-                    y = (x.^2) ./ 30 - 20;
+                    y = (x.^2) ./ 30;
 
                 case "tube"
-                    cond = x < -20;
-                    y(cond) = (1/8) * (x(cond) + 20).^2 + 29;
+                    cond = x < 0;
+                    y(cond) = (1/15) * x(cond).^2 + 2;
                 
-                    cond = x < 4 & x >= -20;
-                    y(cond) = -(3/2) * x(cond) - 1;
+                    cond = x < 15 & x >= 0;
+                    y(cond) = 2;
                 
-                    cond = x < 10 & x >= 4;
-                    y(cond) = -7;
-                
-                    cond = x >= 10;
-                    y(cond) = -9;
+                    cond = x < 25 & x >= 15;
+                    y(cond) = -(1/5) * (x(cond) - 15) + 2;
+
+                    cond = x >= 25;
+                    y(cond) = 0;
             end
         
         end
