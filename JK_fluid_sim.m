@@ -5,7 +5,7 @@ result = main();
 function f_obj = main()
     
     close all
-    f_obj = simulate_fluid("tube");
+    f_obj = simulate_fluid("test");
 
 end
 
@@ -19,17 +19,19 @@ function f_obj = simulate_fluid(preset)
     % Run Setup:
     f_obj = fluid_obj(preset);
     f_obj = f_obj.spawn_elements();
-    plot_obj = create_plot(f_obj,'c', 200);
+    [plot_obj, arrow_obj] = create_plot(f_obj,'c', 200);
 
     % Initialize Frame Recording
     f_obj.frames = getframe();
     frame_count = 2;
+    iterations = 0;
 
     dt_per_frame = floor((1/f_obj.dt) / f_obj.fps);
 
     % Simulation Loop:
     for t = 0:f_obj.dt:f_obj.sim_time
         % Forward Walk:
+        iterations = iterations + 1;
         f_obj = f_obj.forward_walk();
 
         % Molecule Collisions
@@ -43,10 +45,14 @@ function f_obj = simulate_fluid(preset)
         % Add Gravity:
         f_obj.Data(2,:,3) = f_obj.Data(2,:,3) - f_obj.g;
 
+        % Record:
+        f_obj = f_obj.record_velocities(iterations);
+
         % Update Plot:
         if mod(t, dt_per_frame * f_obj.dt) == 0
             delete(plot_obj)
-            plot_obj = create_plot(f_obj);
+            delete(arrow_obj)
+            [plot_obj, arrow_obj] = create_plot(f_obj);
             disp("t = " + string(t))
             drawnow
             f_obj.frames(frame_count) = getframe();
@@ -62,7 +68,7 @@ end
 % Setup
 
 % Plotting:
-function plot_obj = create_plot(f_obj, mode, resolution)
+function [plot_obj, arrow_obj] = create_plot(f_obj, mode, resolution)
 % Creates the plot that will hold the current state of the model
 % Takes:
 %   data: Only contains the position data
@@ -71,14 +77,26 @@ function plot_obj = create_plot(f_obj, mode, resolution)
 %   resolution: Resolution of the wall line data
 % Returns:
 %   plot_obj: Contains the handles for all of the elements on the plot
+%   arrow_obj: Returns the handles for all of the arrows on the plot
     
     % Initialize:
     data = f_obj.Data(:,:,1);
-    size = f_obj.e_radius;
-    
+    hold on
 
     % Main Code:
-    plot_obj = viscircles(data',size,Color="blue");
+    plot_obj = viscircles(data',f_obj.e_radius,Color="blue");
+
+    % Make Arrows for Regions:
+    x = permute(f_obj.rec_v_region(1,3,:), [1 3 2]);
+    y = permute(f_obj.rec_v_region(2,3,:), [1 3 2]);
+    u = permute(f_obj.rec_v_current(1,1,:), [1 3 2]);
+    v = permute(f_obj.rec_v_current(2,1,:), [1 3 2]);
+
+    u(isnan(u)) = 0;
+    v(isnan(v)) = 0;
+    
+    arrow_obj = quiver(x,y,u,v,'r');
+
     if nargin == 3 && mode == 'c'
         % Create Wall Data:
         x_wall = linspace(f_obj.x_axis(1),f_obj.x_axis(2),resolution);
@@ -86,14 +104,25 @@ function plot_obj = create_plot(f_obj, mode, resolution)
         y_l_wall = f_obj.l_wall(x_wall);
         
         % Create Plot Object
-        hold on
+        
         plot(x_wall,y_u_wall,x_wall,y_l_wall); 
-        hold off
     
+        % Create Rectangle Regions:
+        for depth = 1:size(f_obj.rec_v_region,3)
+            
+            pos = [f_obj.rec_v_region(:,1,depth)',...
+                f_obj.rec_v_region(:,2,depth)' - f_obj.rec_v_region(:,1,depth)'];
+            rectangle('Position',pos,'EdgeColor', f_obj.rec_v_color(:,:,depth))
+
+        end
+        
+
         % Plot Size:
         xlim(f_obj.x_axis)
         ylim(f_obj.y_axis)
     end
+
+    hold off
 
 end
 

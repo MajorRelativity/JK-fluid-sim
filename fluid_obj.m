@@ -6,8 +6,20 @@ classdef fluid_obj
     %   preset(str): Keeps track of what preset is used for the model
     %   sim_time (int): The amount of seconds you want to run the simulation for
     %   dt (float): The time step between each iteration of the simulation
+    %   
     %   Data (3D Matrix): a 3D matrix with dimension rows, element number as columns, and
     %       position derivatives along the depth (r, v, a)
+    %   rec_v_region (3D Matrix): each column pair dictates the two corners
+    %       that should be recorded. The depth will be for different
+    %       regions. The 3rd Column is the center point of the region.
+    %   rec_v (3D Matrix): Each column is a velocity at a certain time.
+    %       Each depth is for the different regions
+    %   rec_v_times (Row Vector): Each column is the time of recording for
+    %       the rec_v matrix
+    %   rec_v_current (Column Vector): Gives the current average velocity
+    %       of the particles in the region!
+    %   rec_v_color (3D Row Vector): Specifies the color for each recording
+    %       region
     %
     %   e_num (int): The number of elements you want in the simulation
     %   e_radius (float): The radius of each element
@@ -36,7 +48,13 @@ classdef fluid_obj
         preset
         sim_time
         dt
+
         Data
+        rec_v_region
+        rec_v
+        rec_v_times
+        rec_v_current
+        rec_v_color
 
         e_num
         e_radius
@@ -65,12 +83,15 @@ classdef fluid_obj
             %   tube: Used to analyze how changing pipe size effects flow
             %       rate
             
-            % Presets:
+            %%% Presets:
             switch preset
                 case "test"
                 
                     obj.dt = .0001;
-                    obj.sim_time = 3;
+                    obj.sim_time = 1;
+
+                    obj.rec_v_region(:,:,1) = [0 10; 0 10];
+                    obj.rec_v_region(:,:,2) = [0 5; 0 5];
     
                     obj.e_num = 100;
                     obj.e_radius = .5;
@@ -88,6 +109,8 @@ classdef fluid_obj
                 case "tube"
                     obj.dt = .0001;
                     obj.sim_time = 1;
+
+                    obj.rec_v_region = [0 1; 0 1];
     
                     obj.e_num = 2000;
                     obj.e_radius = .25;
@@ -104,14 +127,25 @@ classdef fluid_obj
 
             end
             
-            % General:
+            %%% General:
             obj.preset = preset;
             obj.fps = 30;
 
             obj.Data(:,:,1) = zeros(2,obj.e_num); % Position
             obj.Data(:,:,2) = zeros(2,obj.e_num); % Velocity
             obj.Data(:,:,3) = zeros(2,obj.e_num); % Acceleration
+            
+            % Build v_rec:
+            depth = size(obj.rec_v_region,3);
 
+            obj.rec_v = zeros(2,(obj.sim_time/obj.dt) + 1,depth);
+            obj.rec_v_current = zeros(2,1,depth);
+            obj.rec_v_times = 0:obj.dt:obj.sim_time;
+
+            obj.rec_v_region(:,3,:) = (obj.rec_v_region(:,1,:) + obj.rec_v_region(:,2,:)) ./ 2;
+            
+            % Set Color of Regions
+            obj.rec_v_color = rand(1,3,depth);
         end
         function obj = spawn_elements(obj)
             % Modifies the Data matrix to apply spawn positions based on
@@ -222,7 +256,29 @@ classdef fluid_obj
             end
         
         end
+        
+        % Recording:
+        function obj = record_velocities(obj,i)
+        % Records the velocities according to the region specified in the f_obj
+        % Takes:
+        %   rec_v (3D Matrix): Contains current recorded velocities for all regions
+        %   i (float): The current iterations (used to index the recording)
+        %   rec_v_times (Row Vector): Contains current recorded times
+        %   rec_v_region (3D Matrix): Contains all of the regions associated with
+        %       the above
+        % Returns:
+        %   f_obj: Updated object
 
+            for depth = 1:size(obj.rec_v_region,3)
+                region = obj.Data(:,:,1) >= obj.rec_v_region(:,1,depth) &...
+                    obj.Data(:,:,1) <= obj.rec_v_region(:,2,depth);
+                region = all(region,1);
+                
+                obj.rec_v_current(:,1,depth) = mean(obj.Data(:,region,2),2);
+                obj.rec_v(:,i,depth) = obj.rec_v_current(:,1,depth);
+            end
+        
+        end
     end
 end
 
