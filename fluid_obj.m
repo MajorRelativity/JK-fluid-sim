@@ -92,14 +92,13 @@ classdef fluid_obj
                     obj.dt = .0001;
                     obj.sim_time = 1;
 
-                    obj.rec_v_region(:,:,1) = [0 10; 0 10];
-                    obj.rec_v_region(:,:,2) = [0 5; 0 5];
+                    obj.rec_v_region(:,:,1) = [0 0; 0 0];
     
-                    obj.e_num = 100;
-                    obj.e_radius = .5;
+                    obj.e_num = 250;
+                    obj.e_radius = .25;
                     obj.e_repulse = 100000;
-                    obj.e_attract = -1000;
-                    obj.spawn_region = [-10 10; 15 20];
+                    obj.e_attract = -8000;
+                    obj.spawn_region = [-10 10; 0 20];
     
                     obj.friction_factor = .001;
                     obj.normal_factor = .6;
@@ -110,10 +109,11 @@ classdef fluid_obj
 
                 case "tube"
                     obj.dt = .0001;
-                    obj.sim_time = .75;
-
-                    obj.rec_v_region(:,:,1) = [2 8; -1 10];
-                    obj.rec_v_region(:,:,2) = [-16 -3; 10 20];
+                    obj.sim_time = 2;
+                    
+                    obj.rec_v_region(:,:,1) = [-16 -3; 10 20];
+                    obj.rec_v_region(:,:,2) = [2 8; -1 10];
+                    obj.rec_v_region(:,:,3) = [27 32; -1 10];
     
                     obj.e_num = 3000;
                     obj.e_radius = .25;
@@ -127,6 +127,24 @@ classdef fluid_obj
                     obj.g = 981;
                     obj.x_axis = [-40 40];
                     obj.y_axis = [-20 60];
+                case "ball_demo"
+                    obj.dt = .0001;
+                    obj.sim_time = 10;
+                    
+                    obj.rec_v_region(:,:,1) = [0 0; 0 0];
+    
+                    obj.e_num = 3;
+                    obj.e_radius = .5;
+                    obj.e_repulse = 10;
+                    obj.e_attract = -10;
+                    obj.spawn_region = [-.5 .5; 0 3];
+    
+                    obj.friction_factor = 0;
+                    obj.normal_factor = .6;
+    
+                    obj.g = 981;
+                    obj.x_axis = [-5 5];
+                    obj.y_axis = [-5 5];
 
             end
             
@@ -224,8 +242,16 @@ classdef fluid_obj
                     cond = x < 0;
                     y(cond) = (1/5) * x(cond).^2 + 4;
                 
-                    cond = x >= 0;
+                    cond = x < 15 & x >= 0;
                     y(cond) = 4;
+                
+                    cond = x < 25 & x >= 15;
+                    y(cond) = (1/5) * (x(cond) - 15) + 4;
+
+                    cond = x >= 25;
+                    y(cond) = 6;
+                case "ball_demo"
+                    y = 5 * ones(size(x));
             end
         
         end
@@ -248,14 +274,10 @@ classdef fluid_obj
                     cond = x < 0;
                     y(cond) = (1/15) * x(cond).^2 + 2;
                 
-                    cond = x < 15 & x >= 0;
+                    cond = x >= 0;
                     y(cond) = 2;
-                
-                    cond = x < 25 & x >= 15;
-                    y(cond) = -(1/5) * (x(cond) - 15) + 2;
-
-                    cond = x >= 25;
-                    y(cond) = 0;
+                case "ball_demo"
+                    y = -1 * ones(size(x));
             end
         
         end
