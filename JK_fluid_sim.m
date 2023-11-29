@@ -1,17 +1,17 @@
 %% Testing Section
-result = main();
+[f_obj, results] = main();
 
 %% Main
-function f_obj = main()
+function [f_obj, results] = main()
     
     close all
-    f_obj = simulate_fluid("test");
+    [f_obj, results] = simulate_fluid("tube");
 
 end
 
 %% Simulation Runner:
 % Main Function:
-function f_obj = simulate_fluid(preset)
+function [f_obj, results] = simulate_fluid(preset)
 % The primary function used to run the simulation
 % Takes:
 %   preset: Which preset the fluid object shoulds use!
@@ -62,11 +62,12 @@ function f_obj = simulate_fluid(preset)
 
     end
 
+    % Post Processing:
+    results.v_avg = f_obj.average_speed_over_time(f_obj.sim_time/4,3*f_obj.sim_time/4);
+
 end
 
 %% Data Manipulation:
-% Setup
-
 % Plotting:
 function [plot_obj, arrow_obj] = create_plot(f_obj, mode, resolution)
 % Creates the plot that will hold the current state of the model
@@ -95,7 +96,7 @@ function [plot_obj, arrow_obj] = create_plot(f_obj, mode, resolution)
     u(isnan(u)) = 0;
     v(isnan(v)) = 0;
     
-    arrow_obj = quiver(x,y,u,v,'r');
+    arrow_obj = quiver(x,y,u,v,'r','LineWidth',3);
 
     if nargin == 3 && mode == 'c'
         % Create Wall Data:

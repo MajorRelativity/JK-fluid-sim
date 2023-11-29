@@ -9,6 +9,7 @@ classdef fluid_obj
     %   
     %   Data (3D Matrix): a 3D matrix with dimension rows, element number as columns, and
     %       position derivatives along the depth (r, v, a)
+    %
     %   rec_v_region (3D Matrix): each column pair dictates the two corners
     %       that should be recorded. The depth will be for different
     %       regions. The 3rd Column is the center point of the region.
@@ -50,6 +51,7 @@ classdef fluid_obj
         dt
 
         Data
+
         rec_v_region
         rec_v
         rec_v_times
@@ -108,15 +110,16 @@ classdef fluid_obj
 
                 case "tube"
                     obj.dt = .0001;
-                    obj.sim_time = 1;
+                    obj.sim_time = .75;
 
-                    obj.rec_v_region = [0 1; 0 1];
+                    obj.rec_v_region(:,:,1) = [2 8; -1 10];
+                    obj.rec_v_region(:,:,2) = [-16 -3; 10 20];
     
-                    obj.e_num = 2000;
+                    obj.e_num = 3000;
                     obj.e_radius = .25;
                     obj.e_repulse = 10^5;
                     obj.e_attract = -1000;
-                    obj.spawn_region = [-200 0;100 300];
+                    obj.spawn_region = [-200 25;0 100];
     
                     obj.friction_factor = 0;
                     obj.normal_factor = .6;
@@ -278,6 +281,33 @@ classdef fluid_obj
                 obj.rec_v(:,i,depth) = obj.rec_v_current(:,1,depth);
             end
         
+        end
+        function avg = average_speed_over_time(obj,t1,t2)
+            % Calculates the average speed between two times of all
+            %   recorded regions
+            % Takes:
+            %   obj: Will contain the necessary velocity information
+            %   t1: The beginning time
+            %   t2: The ending time
+            % Returns:
+            %   avg: The average magnitude of the velocity. Given in row
+            %       vector form where avg(i) is the ith region's avg
+            
+            avg = zeros(1,size(obj.rec_v,3));
+
+            for depth = 1:size(obj.rec_v,3)
+                % Get Requested Velocities
+                index = all(~isnan(obj.rec_v(:,:,depth)),1) &...
+                    obj.rec_v_times >= t1 & obj.rec_v_times <= t2;
+                
+                v = zeros(2,sum(index));
+                v(:,:) = obj.rec_v(:,index,depth);
+
+                % Change to Speed and take mean:
+                speed = sqrt(sum(v .* v));
+                avg(depth) = mean(speed);
+            end            
+
         end
     end
 end
