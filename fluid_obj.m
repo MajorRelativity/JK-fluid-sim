@@ -90,7 +90,7 @@ classdef fluid_obj
                 case "test"
                 
                     obj.dt = .0001;
-                    obj.sim_time = 1;
+                    obj.sim_time = 2;
 
                     obj.rec_v_region(:,:,1) = [0 0; 0 0];
     
@@ -98,9 +98,9 @@ classdef fluid_obj
                     obj.e_radius = .25;
                     obj.e_repulse = 100000;
                     obj.e_attract = -8000;
-                    obj.spawn_region = [-10 10; 0 20];
+                    obj.spawn_region = [15 30; 25 35];
     
-                    obj.friction_factor = .001;
+                    obj.friction_factor = .1;
                     obj.normal_factor = .6;
     
                     obj.g = 980;
@@ -122,7 +122,7 @@ classdef fluid_obj
                     obj.spawn_region = [-200 25;0 100];
     
                     obj.friction_factor = 0;
-                    obj.normal_factor = .6;
+                    obj.normal_factor = 1;
     
                     obj.g = 981;
                     obj.x_axis = [-40 40];

@@ -5,7 +5,7 @@
 function [f_obj, results] = main()
     
     close all
-    [f_obj, results] = simulate_fluid("ball_demo");
+    [f_obj, results] = simulate_fluid("tube");
 
 end
 
