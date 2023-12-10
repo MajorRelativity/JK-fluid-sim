@@ -145,7 +145,42 @@ classdef fluid_obj
                     obj.g = 981;
                     obj.x_axis = [-5 5];
                     obj.y_axis = [-5 5];
-
+                case "goofy"
+                    obj.dt = .0001;
+                    obj.sim_time = 18;
+                    
+                    obj.rec_v_region(:,:,1) = [0 0; 0 0];
+    
+                    obj.e_num = 3;
+                    obj.e_radius = 1;
+                    obj.e_repulse = 10^8;
+                    obj.e_attract = -1000;
+                    obj.spawn_region = [-1 1; -5 35];
+    
+                    obj.friction_factor = 0;
+                    obj.normal_factor = 1.1;
+    
+                    obj.g = 10;
+                    obj.x_axis = [-20 20];
+                    obj.y_axis = [-5 35];
+                case "friction"
+                    obj.dt = .0001;
+                    obj.sim_time = 5;
+                    
+                    obj.rec_v_region(:,:,1) = [0 0; 0 0];
+    
+                    obj.e_num = 1;
+                    obj.e_radius = .25;
+                    obj.e_repulse = 10^5;
+                    obj.e_attract = -1000;
+                    obj.spawn_region = [0 2; 2 3];
+    
+                    obj.friction_factor = 1;
+                    obj.normal_factor = .6;
+    
+                    obj.g = 100;
+                    obj.x_axis = [-3 3];
+                    obj.y_axis = [-3 3];
             end
             
             %%% General:
@@ -240,18 +275,26 @@ classdef fluid_obj
                     y = 35 .* ones(1,length(x));
                 case "tube"
                     cond = x < 0;
-                    y(cond) = (1/5) * x(cond).^2 + 4;
+                    y(cond) = (1/5) * x(cond).^2 + 6;
                 
                     cond = x < 15 & x >= 0;
-                    y(cond) = 4;
+                    y(cond) = 6;
                 
                     cond = x < 25 & x >= 15;
-                    y(cond) = (1/5) * (x(cond) - 15) + 4;
+                    y(cond) = (-1/5) * (x(cond) - 15) + 6;
 
                     cond = x >= 25;
-                    y(cond) = 6;
+                    y(cond) = 4;
                 case "ball_demo"
                     y = 5 * ones(size(x));
+                case "goofy"
+                    cond = x < 0;
+                    y(cond) = x(cond) + 20;
+
+                    cond = x >= 0;
+                    y(cond) = -1 * x(cond) + 20;
+                case "friction"
+                    y = 40 * ones(size(x));
             end
         
         end
@@ -265,7 +308,6 @@ classdef fluid_obj
             % Initialize:
             y = zeros(1,length(x));
             
-            % Basic:
             switch obj.preset
                 case "test"
                     y = (x.^2) ./ 30;
@@ -278,6 +320,10 @@ classdef fluid_obj
                     y(cond) = 2;
                 case "ball_demo"
                     y = -1 * ones(size(x));
+                case "goofy"
+                    y = -1 * ones(size(x));
+                case "friction"
+                    y = (x/2) - 1;
             end
         
         end
